@@ -1,6 +1,14 @@
 # Barista Labels
 
+![Barista Labels — Design. Publish. Print.](public/branding/barista-banner.png)
+
 Standalone Node.js label designer with a familiar desktop workspace, React/Vite/DaisyUI frontend, portable projects, Microsoft Entra authentication, and Zebra ZPL generation/network printing.
+
+## Branding
+
+<img src="public/branding/barista-icon-192.png" alt="Barista Labels folded-label and barcode app mark" width="96" height="96" />
+
+The blue folded-label mark is used in the Editor and Printer headers and on the sign-in screen. Reusable assets live in [public/branding](public/branding): the full-resolution banner and transparent icon, plus PNG icons at 16, 32, 64, 180, 192 and 512 pixels. [favicon.ico](public/favicon.ico) contains 16, 32 and 48 pixel icons; the 180 pixel PNG is the Apple touch icon. See [branding notes and generation prompts](docs/branding.md).
 
 ## Run locally
 
@@ -25,7 +33,7 @@ The supplied Entra tenant and SPA client IDs are in `.env.example`. Production a
 - Authoritative local monochrome rendering after edits settle; preview and ZPL share a compilation pipeline.
 - Named fields, print-time values and CSV mapping/batch validation.
 - Element formulas for automatic text and barcode formatting. See [formula usage](docs/formulas.md).
-- Shared SQLite projects, optimistic revisions/history, local draft recovery and portable `.barista` ZIP files with assets.
+- Selectable SQLite or SQL Server storage, optimistic revisions/history, local draft recovery and portable `.barista` ZIP files with assets. SQL mode stores asset bytes in the database; see [SSMS setup and migration](docs/sql-storage.md).
 - Printer configuration/checks, immutable compilations, quantities, idempotent queueing, cancellation and explicit reprints.
 - Dynamic read-only SQL Server printer catalog from `BYAPPS.LabelPrint.dbo.printersZPL`, automatic list refresh and live endpoint validation. See [SQL catalog setup](docs/sql-printer-catalog.md).
 - Native boxes/lines only when dot-for-dot equivalence is verified; raster fallback otherwise. No remote rendering services or preloaded printer fonts.
