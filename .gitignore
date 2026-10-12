@@ -1,0 +1,12 @@
+node_modules/
+dist/
+data/
+.env
+*.log
+test-results/
+bartender-investigation/
+research-artifacts/
+.cache/
+tools/python/
+*.resources
+*.licenses
