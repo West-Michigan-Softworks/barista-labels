@@ -524,3 +524,36 @@ test("overlapping shapes retain composite raster stacking", async () => {
     await closeRenderer();
   }
 });
+test("all standard system fonts compile without missing font diagnostics", async () => {
+  for (const fontFamily of ["Arial", "Courier New", "Times New Roman"]) {
+    try {
+      const text = {
+        id: "txt",
+        type: "text",
+        xUm: 0,
+        yUm: 0,
+        widthUm: 50000,
+        heightUm: 10000,
+        text: "Sample Text",
+        fontFamily,
+        fontSizeUm: 3000,
+      };
+      const result = await compileProject(
+        { templates: [{ id: "t", widthUm: 50000, heightUm: 20000, elements: [text] }] },
+        "t",
+        {},
+        { dotsPerMm: 8, widthDots: 400 },
+        ".",
+      );
+      assert.equal(
+        result.diagnostics.length,
+        0,
+        `Expected no diagnostics for ${fontFamily}: ${JSON.stringify(result.diagnostics)}`,
+      );
+      assert.ok(result.previewBase64);
+    } finally {
+      await closeRenderer();
+    }
+  }
+});
+

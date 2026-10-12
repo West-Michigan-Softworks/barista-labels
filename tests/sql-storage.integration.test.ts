@@ -229,7 +229,11 @@ test(
       const fontFile =
         process.platform === "win32"
           ? "C:/Windows/Fonts/arial.ttf"
-          : "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf";
+          : existsSync(
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+              )
+            ? "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+            : "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf";
       if (existsSync(fontFile)) {
         const font = readFileSync(fontFile);
         const uploadedFont = await app.inject({

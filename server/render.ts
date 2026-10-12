@@ -3,6 +3,7 @@ import { chromium, type Browser, type Page } from "playwright";
 import sharp from "sharp";
 import bwipjs from "bwip-js/node";
 import { readFile, access } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fitBarcode, printerDots } from "../shared/barcode";
 
@@ -185,6 +186,17 @@ export function graphicZpl(pixels: Uint8Array, width: number, height: number) {
   return fields.join("\n");
 }
 
+function findLinuxFont(fileName: string): string {
+  for (const dir of [
+    "/usr/share/fonts/truetype/liberation",
+    "/usr/share/fonts/truetype/liberation2",
+  ]) {
+    const candidate = path.join(dir, fileName);
+    if (existsSync(candidate)) return candidate;
+  }
+  return path.join("/usr/share/fonts/truetype/liberation2", fileName);
+}
+
 const systemFonts: Record<string, string> =
   process.platform === "win32"
     ? {
@@ -193,12 +205,9 @@ const systemFonts: Record<string, string> =
         "Times New Roman": "C:/Windows/Fonts/times.ttf",
       }
     : {
-        Arial:
-          "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
-        "Courier New":
-          "/usr/share/fonts/truetype/liberation2/LiberationMono-Regular.ttf",
-        "Times New Roman":
-          "/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf",
+        Arial: findLinuxFont("LiberationSans-Regular.ttf"),
+        "Courier New": findLinuxFont("LiberationMono-Regular.ttf"),
+        "Times New Roman": findLinuxFont("LiberationSerif-Regular.ttf"),
       };
 // Validate Unicode coverage rather than silently accepting OS fallback fonts.
 // Original parser for the documented OpenType cmap formats 4 and 12:
