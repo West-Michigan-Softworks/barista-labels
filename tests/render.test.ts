@@ -50,6 +50,22 @@ test("centered barcode boxes center the printed bars as data and resolution chan
   } finally { await closeRenderer(); }
 });
 
+test("rounded rectangles retain clear corners in the print preview and ZPL", async () => {
+  const rectangle = { id: "rounded", type: "rectangle", xUm: 1000, yUm: 1000,
+    widthUm: 6000, heightUm: 6000, strokeUm: 0, fill: "black", cornerRadiusUm: 2000 };
+  try {
+    const result = await compileProject({ templates: [{ id: "t", widthUm: 8000,
+      heightUm: 8000, elements: [rectangle] }] }, "t", {}, { dotsPerMm: 8, widthDots: 64 }, ".");
+    assert.deepEqual(result.diagnostics, []);
+    const pixels = await sharp(Buffer.from(result.previewBase64, "base64")).greyscale().raw().toBuffer();
+    assert.equal(pixels[8 * 64 + 8], 255, "Rounded corner should be clear");
+    assert.equal(pixels[8 * 64 + 32], 0, "Top edge should contain ink");
+    assert.equal(pixels[32 * 64 + 32], 0, "Center should remain filled");
+    assert.ok(!result.zpl.includes("^GB"), "Rounded corners must survive printer output");
+    assert.ok(result.zpl.includes("^GFA"));
+  } finally { await closeRenderer(); }
+});
+
 test("physical geometry quantizes consistently for 8, 12 and 24 dots/mm", () => {
   for (const dpm of [8, 12, 24]) {
     assert.equal(dots(25400, dpm), Math.round(25.4 * dpm));

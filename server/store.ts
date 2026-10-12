@@ -80,8 +80,8 @@ export class Store {
   delete(kind: string, id: string) {
     this.db.prepare("DELETE FROM records WHERE kind=? AND id=?").run(kind, id);
   }
-  saveProject(project: any, expected: number | undefined) {
-    this.db.exec("BEGIN IMMEDIATE");
+  saveProject(project: any, expected: number | undefined, inTransaction = false) {
+    if (!inTransaction) this.db.exec("BEGIN IMMEDIATE");
     try {
       const old = this.get("project", project.id);
       if (
@@ -105,10 +105,10 @@ export class Store {
       this.db
         .prepare("INSERT INTO revisions VALUES(?,?,?)")
         .run(project.id, value.revision, JSON.stringify(value));
-      this.db.exec("COMMIT");
+      if (!inTransaction) this.db.exec("COMMIT");
       return value;
     } catch (error) {
-      this.db.exec("ROLLBACK");
+      if (!inTransaction) this.db.exec("ROLLBACK");
       throw error;
     }
   }

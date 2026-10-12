@@ -23,13 +23,14 @@ type Element = {
   heightUm: number;
   rotation?: number;
   text?: string;
-  dataMode?: 'literal' | 'template' | 'formula';
+  dataMode?: "literal" | "template" | "formula";
   fontFamily?: string;
   fontSizeUm?: number;
   lineHeightUm?: number;
   bold?: boolean;
   align?: string;
   strokeUm?: number;
+  cornerRadiusUm?: number;
   fill?: string;
   symbology?: string;
   value?: string;
@@ -252,7 +253,27 @@ export function fontHasGlyph(font: Buffer, codepoint: number): boolean {
   }
   return false;
 }
-async function fontData(family: string, project: Project, assetsDir: string) {
+export type AssetSource =
+  string | { readAsset(id: string): Promise<Buffer | undefined> };
+async function assetBytes(source: AssetSource, fileName: string) {
+  if (
+    !fileName ||
+    path.basename(fileName) !== fileName ||
+    fileName.includes("..")
+  )
+    throw new Error("Invalid asset file name.");
+  const bytes =
+    typeof source === "string"
+      ? await readFile(path.join(source, fileName))
+      : await source.readAsset(fileName);
+  if (!bytes) throw new Error("Asset content is missing.");
+  return bytes;
+}
+async function fontData(
+  family: string,
+  project: Project,
+  assetsDir: AssetSource,
+) {
   if (!/^[\p{L}\p{N}_ -]{1,80}$/u.test(family))
     throw new Error("Font family name is invalid.");
   const asset = project.assets?.find(
@@ -261,9 +282,7 @@ async function fontData(family: string, project: Project, assetsDir: string) {
   if (asset) {
     if (!asset.fileName || path.basename(asset.fileName) !== asset.fileName)
       throw new Error("Invalid font asset file name.");
-    return (await readFile(path.join(assetsDir, asset.fileName))).toString(
-      "base64",
-    );
+    return (await assetBytes(assetsDir, asset.fileName)).toString("base64");
   }
   let file = systemFonts[family];
   if (!file && process.env.BARISTA_FONT_DIR && /^[\w -]{1,80}$/.test(family))
@@ -276,16 +295,13 @@ async function fontData(family: string, project: Project, assetsDir: string) {
 async function assetData(
   project: Project,
   id: string | undefined,
-  assetsDir: string,
+  assetsDir: AssetSource,
 ) {
   const asset = project.assets?.find((a) => a.id === id);
   if (!asset?.fileName || path.basename(asset.fileName) !== asset.fileName)
     throw new Error("Image asset is missing or has an invalid file name.");
-  const file = path.resolve(assetsDir, asset.fileName);
-  if (path.dirname(file) !== path.resolve(assetsDir))
-    throw new Error("Image asset is outside the asset directory.");
   // Decode and re-encode: no external references, SVG scripts, or browser file access.
-  const png = await sharp(await readFile(file), {
+  const png = await sharp(await assetBytes(assetsDir, asset.fileName), {
     limitInputPixels: 16_000_000,
   })
     .rotate()
@@ -299,7 +315,7 @@ export async function compileProject(
   templateId: string,
   data: Record<string, string>,
   printer: Printer,
-  assetsDir: string,
+  assetsDir: AssetSource,
   options: { quantity?: number } = {},
 ): Promise<Compilation> {
   const quantity = options.quantity ?? 1;
@@ -344,10 +360,12 @@ export async function compileProject(
     });
   const resolvedSources = resolveFormulaSources(project.variables ?? [], data);
   const values = resolvedSources.values;
-  for (const error of resolvedSources.errors) diagnostics.push({
-    severity: "error", code: "INVALID_FORMULA_SOURCE",
-    message: `${error.name}: ${error.message}`,
-  });
+  for (const error of resolvedSources.errors)
+    diagnostics.push({
+      severity: "error",
+      code: "INVALID_FORMULA_SOURCE",
+      message: `${error.name}: ${error.message}`,
+    });
   const fonts = new Map<string, string>();
   const markup: string[] = [];
   const bounds: {
@@ -372,7 +390,9 @@ export async function compileProject(
           ? Math.max(1, stroke)
           : dots(element.heightUm, printer.dotsPerMm);
       if (element.type === "line" && stroke < 1)
-        throw new Error("A line must have at least one printer dot of stroke thickness.");
+        throw new Error(
+          "A line must have at least one printer dot of stroke thickness.",
+        );
       if (
         ![x, y, w, h, element.rotation ?? 0].every(Number.isFinite) ||
         w < 1 ||
@@ -416,12 +436,17 @@ export async function compileProject(
           1,
           dots(element.fontSizeUm ?? 3500, printer.dotsPerMm),
         );
-        const text = element.dataMode === 'formula' ? evaluateFormula(element.text ?? '', values) : element.dataMode === 'literal' ? element.text ?? '' : resolveFields(
-          element.text ?? "",
-          values,
-          diagnostics,
-          element.id,
-        );
+        const text =
+          element.dataMode === "formula"
+            ? evaluateFormula(element.text ?? "", values)
+            : element.dataMode === "literal"
+              ? (element.text ?? "")
+              : resolveFields(
+                  element.text ?? "",
+                  values,
+                  diagnostics,
+                  element.id,
+                );
         const font = Buffer.from(fonts.get(family)!, "base64");
         const missing = [
           ...new Set(
@@ -436,7 +461,10 @@ export async function compileProject(
           throw new Error(
             `Font ${family} lacks characters ${missing.slice(0, 8).join(" ")}; choose or upload a font containing them.`,
           );
-        const lineHeight = element.lineHeightUm === undefined ? '1.15' : `${Math.max(1,dots(element.lineHeightUm,printer.dotsPerMm))}px`;
+        const lineHeight =
+          element.lineHeightUm === undefined
+            ? "1.15"
+            : `${Math.max(1, dots(element.lineHeightUm, printer.dotsPerMm))}px`;
         inner = `<div data-text-id="${escape(element.id)}" style="${style}font-family:'${escape(family)}';font-size:${size}px;font-weight:${element.bold ? 700 : 400};line-height:${lineHeight};text-align:${["left", "center", "right"].includes(element.align ?? "") ? element.align : "left"};white-space:pre-wrap;overflow:hidden;overflow-wrap:break-word;">${escape(text)}</div>`;
       } else if (["rectangle", "ellipse", "line"].includes(element.type)) {
         const fill =
@@ -450,22 +478,33 @@ export async function compileProject(
             ? `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${Math.max(0, (w - stroke) / 2)}" ry="${Math.max(0, (h - stroke) / 2)}"/>`
             : element.type === "line"
               ? `<line x1="0" y1="${stroke / 2}" x2="${w}" y2="${stroke / 2}"/>`
-              : `<rect x="${stroke / 2}" y="${stroke / 2}" width="${Math.max(0, w - stroke)}" height="${Math.max(0, h - stroke)}"/>`;
+              : `<rect x="${stroke / 2}" y="${stroke / 2}" width="${Math.max(0, w - stroke)}" height="${Math.max(0, h - stroke)}" rx="${Math.min(dots(element.cornerRadiusUm ?? 0, printer.dotsPerMm), Math.max(0, w - stroke) / 2, Math.max(0, h - stroke) / 2)}"/>`;
         inner = `<svg style="${style}" viewBox="0 0 ${w} ${h}"><g fill="${fill}" stroke="black" stroke-width="${stroke}">${shape}</g></svg>`;
       } else if (element.type === "image") {
         inner = `<img style="${style}object-fit:contain" src="${await assetData(project, element.assetId, assetsDir)}"/>`;
       } else if (element.type === "barcode") {
-        const text = element.dataMode === 'formula' ? evaluateFormula(element.value ?? '', values) : element.dataMode === 'literal' ? element.value ?? '' : resolveFields(
-          element.value ?? "",
-          values,
-          diagnostics,
-          element.id,
+        const text =
+          element.dataMode === "formula"
+            ? evaluateFormula(element.value ?? "", values)
+            : element.dataMode === "literal"
+              ? (element.value ?? "")
+              : resolveFields(
+                  element.value ?? "",
+                  values,
+                  diagnostics,
+                  element.id,
+                );
+        const fitted = await fitBarcode(
+          element.symbology ?? "",
+          text,
+          w,
+          h,
+          async (options) => {
+            const image = await bwipjs.toBuffer(options);
+            const meta = await sharp(image).metadata();
+            return { image, width: meta.width!, height: meta.height! };
+          },
         );
-        const fitted = await fitBarcode(element.symbology ?? "", text, w, h, async (options) => {
-          const image = await bwipjs.toBuffer(options);
-          const meta = await sharp(image).metadata();
-          return { image, width: meta.width!, height: meta.height! };
-        });
         const png = await sharp(fitted.image)
           .resize(fitted.width, fitted.height, { kernel: "nearest" })
           .png()
@@ -477,11 +516,13 @@ export async function compileProject(
       diagnostics.push({
         severity: "error",
         code:
-          element.dataMode === "formula" ? "INVALID_FORMULA" : element.type === "text"
-            ? "FONT_OR_TEXT"
-            : element.type === "barcode"
-              ? "INVALID_BARCODE"
-              : "INVALID_ELEMENT",
+          element.dataMode === "formula"
+            ? "INVALID_FORMULA"
+            : element.type === "text"
+              ? "FONT_OR_TEXT"
+              : element.type === "barcode"
+                ? "INVALID_BARCODE"
+                : "INVALID_ELEMENT",
         message: (error as Error).message,
         elementId: element.id,
       });
@@ -511,7 +552,7 @@ export async function compileProject(
     await page.evaluate(async () => {
       // Explicitly load declared faces even for empty text; unused faces are
       // otherwise "unloaded", which must not be mistaken for corrupt fonts.
-      await Promise.allSettled([...document.fonts].map(face => face.load()));
+      await Promise.allSettled([...document.fonts].map((face) => face.load()));
       await document.fonts.ready;
       await Promise.all([...document.images].map((img) => img.decode()));
     });

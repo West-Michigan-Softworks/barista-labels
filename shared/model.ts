@@ -41,6 +41,7 @@ export const elementSchema = z.discriminatedUnion("type", [
   z.object({
     ...base,
     type: z.literal("rectangle"),
+    cornerRadiusUm: z.number().int().nonnegative().optional(),
     strokeUm: z.number().int().nonnegative(),
     fill: z.enum(["black", "white", "none"]),
   }),

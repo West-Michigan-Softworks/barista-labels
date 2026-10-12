@@ -74,7 +74,8 @@ textarea {
   letter-spacing: 0.1px;
 }
 .brand-square {
-  background: #2e668a;
+  object-fit: contain;
+  flex-shrink: 0;
   color: white;
   width: 23px;
   height: 23px;
@@ -87,6 +88,26 @@ textarea {
 .title-divider {
   color: #b7bec7;
   margin: 0 4px;
+}
+.header-name {
+  cursor: text;
+}
+.header-name-input {
+  width: 240px;
+  max-width: 30vw;
+  min-width: 80px;
+  height: 25px;
+  padding: 2px 5px;
+  border: 1px solid #7c9dc4;
+  border-radius: 3px;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
+.header-name:focus-visible,
+.header-name-input:focus {
+  outline: 2px solid #7c9dc4;
+  outline-offset: 2px;
 }
 .title-actions {
   font-size: 11px;
@@ -918,7 +939,7 @@ textarea {
 .brand-mark {
   width: 47px;
   height: 47px;
-  background: #37698f;
+  object-fit: contain;
   color: white;
   display: grid;
   place-items: center;

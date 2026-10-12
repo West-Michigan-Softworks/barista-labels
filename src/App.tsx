@@ -178,6 +178,8 @@ export default function App({
     future: [],
   }));
   const project = history.present;
+  const [nameEdit, setNameEdit] = useState<{ projectId: string; value: string } | null>(null);
+  const cancelNameEdit = useRef(false);
   const [publications, setPublications] = useState<PublishedLabel[]>([]);
   const [templateId, setTemplateId] = useState(project.templates[0].id),
     [selected, setSelected] = useState<string[]>([]),
@@ -901,13 +903,54 @@ export default function App({
       />
       <div className="titlebar">
         <div className="brand">
-          <span className="brand-square">B</span>
+          <img className="brand-square" src="/branding/barista-icon-64.png" alt="" width="23" height="23" />
           <b>Barista Labels</b>
           <span className="title-divider">/</span>
-          <span>
-            {project.name}
-            {dirty ? " *" : ""}
-          </span>
+          {nameEdit?.projectId === project.id ? (
+            <input
+              className="header-name-input"
+              aria-label="Label name"
+              value={nameEdit.value}
+              autoFocus
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={(e) => setNameEdit({ projectId: project.id, value: e.target.value })}
+              onBlur={() => {
+                const name = nameEdit.value.trim();
+                if (!cancelNameEdit.current && name && name !== project.name) {
+                  change({ ...project, name });
+                }
+                setNameEdit(null);
+              }}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter" || e.key === "Escape") {
+                  e.preventDefault();
+                  cancelNameEdit.current = e.key === "Escape";
+                  e.currentTarget.blur();
+                }
+              }}
+            />
+          ) : (
+            <span
+              className="header-name"
+              tabIndex={0}
+              title="Double-click to rename label"
+              onDoubleClick={() => {
+                cancelNameEdit.current = false;
+                setNameEdit({ projectId: project.id, value: project.name });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === "F2") {
+                  e.preventDefault();
+                  cancelNameEdit.current = false;
+                  setNameEdit({ projectId: project.id, value: project.name });
+                }
+              }}
+            >
+              {project.name}
+              {dirty ? " *" : ""}
+            </span>
+          )}
         </div>
         <div className="title-actions">
           <span className="publication-status">{publication?.published ? `Published v${publication.version}${dirty || publication.sourceRevision !== revision ? " · draft changes" : ""}` : "Unpublished"}</span>
@@ -1503,6 +1546,22 @@ export default function App({
               {"fill" in current && (
                 <section>
                   <h3>Line & fill</h3>
+                  {current.type === "rectangle" && (
+                    <Field label="Corner radius (mm)">
+                      <input
+                        aria-label="Corner radius"
+                        type="number"
+                        min="0"
+                        step=".1"
+                        value={(current.cornerRadiusUm ?? 0) / 1000}
+                        onChange={(e) =>
+                          property({
+                            cornerRadiusUm: Math.max(0, Math.round(Number(e.target.value) * 1000)),
+                          } as any)
+                        }
+                      />
+                    </Field>
+                  )}
                   <Field label="Thickness (mm)">
                     <input
                       aria-label="Thickness"

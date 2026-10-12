@@ -60,7 +60,7 @@ export default function PrinterPage({ user, admin, onSignOut, onSwitchMode }: {
     return () => { active = false; };
   }, [preparation, row]);
   return <main className="printer-workspace" data-theme="light">
-    <header className="titlebar"><div className="brand"><span className="brand-square">B</span><b>Barista Labels</b><span className="title-divider">/</span><span>Printer</span></div>
+    <header className="titlebar"><div className="brand"><img className="brand-square" src="/branding/barista-icon-64.png" alt="" width="23" height="23" /><b>Barista Labels</b><span className="title-divider">/</span><span>Printer</span></div>
       <div className="title-actions">{onSwitchMode && <button className="btn btn-sm" onClick={onSwitchMode}>Switch to Editor</button>}<span>{user}</span>{onSignOut && <button className="btn btn-sm" onClick={onSignOut}>Sign out</button>}</div>
     </header>
     <div className="printer-content">

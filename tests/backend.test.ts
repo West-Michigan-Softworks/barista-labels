@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import net from "node:net";
 import { Store } from "../server/store.js";
+import { Storage, SqliteStorage } from "../server/storage.js";
 import { PrintQueue, type PrintJob } from "../server/queue.js";
 
 test("project revisions reject stale writers and preserve history", () => {
@@ -32,7 +33,8 @@ test("project revisions reject stale writers and preserve history", () => {
 });
 test("queue delivers bytes to local fake printer and recovers uncertain jobs", async () => {
   const dir = mkdtempSync(join(tmpdir(), "barista-queue-"));
-  const store = new Store(dir);
+  const backend = new SqliteStorage(dir);
+  const store = backend.raw;
   const chunks: Buffer[] = [];
   const server = net.createServer((socket) =>
     socket.on("data", (chunk) => chunks.push(chunk)),
@@ -56,10 +58,11 @@ test("queue delivers bytes to local fake printer and recovers uncertain jobs", a
     id: "interrupted",
     state: "sending",
   });
-  const queue = new PrintQueue(store);
+  const queue = new PrintQueue(new Storage(backend));
+  await queue.recover();
   try {
     assert.equal(store.get("job", "interrupted").state, "outcome-unknown");
-    queue.start();
+    await queue.start();
     await new Promise<void>((resolve, reject) => {
       const began = Date.now();
       const timer = setInterval(() => {
@@ -80,28 +83,29 @@ test("queue delivers bytes to local fake printer and recovers uncertain jobs", a
       }, 10);
     });
     assert.equal(Buffer.concat(chunks).toString(), job.zpl);
-    assert.throws(() => queue.cancel("j"), /queued/);
+    await assert.rejects(() => queue.cancel("j"), /queued/);
   } finally {
-    queue.stop();
+    await queue.stop();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     store.close();
     rmSync(dir, { recursive: true, force: true });
   }
 });
-test("queued cancellation never sends bytes", () => {
+test("queued cancellation never sends bytes", async () => {
   const dir = mkdtempSync(join(tmpdir(), "barista-cancel-"));
-  const store = new Store(dir);
+  const backend = new SqliteStorage(dir);
+  const store = backend.raw;
   store.put("job", "j", {
     id: "j",
     state: "queued",
     printer: { id: "p" },
     updatedAt: "",
   });
-  const queue = new PrintQueue(store);
+  const queue = new PrintQueue(new Storage(backend));
   try {
-    assert.equal(queue.cancel("j").state, "cancelled");
+    assert.equal((await queue.cancel("j")).state, "cancelled");
   } finally {
-    queue.stop();
+    await queue.stop();
     store.close();
     rmSync(dir, { recursive: true, force: true });
   }

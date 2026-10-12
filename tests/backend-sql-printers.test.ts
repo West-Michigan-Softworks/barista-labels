@@ -11,7 +11,6 @@ import { createApp } from "../server/app.js";
 import { newProject } from "../shared/model.js";
 import net from "node:net";
 import { EventEmitter } from "node:events";
-
 const row = (ip = "10.1.2.3") => ({
   printer_id: 7,
   name: "Receiving Zebra",
@@ -183,7 +182,7 @@ test("API uses dynamic SQL printers, refuses SQL mutation, and blocks stale comp
       403,
     );
     const profile = await catalog.resolve("sql:7");
-    store.put("compilation", "c", {
+    await store.put("compilation", "c", {
       id: "c",
       project: newProject(),
       printer: profile,
@@ -208,7 +207,7 @@ test("API uses dynamic SQL printers, refuses SQL mutation, and blocks stale comp
       payload: { compilationId: "c", idempotencyKey: "changed" },
     });
     assert.equal(changed.statusCode, 409);
-    assert.equal(store.list("job").length, 1);
+    assert.equal((await store.list("job")).length, 1);
     fail = true;
     const outage = await app.inject("/api/printers");
     assert.equal(outage.statusCode, 503);
@@ -220,7 +219,7 @@ test("API uses dynamic SQL printers, refuses SQL mutation, and blocks stale comp
       payload: { compilationId: "c", idempotencyKey: "outage" },
     });
     assert.equal(printOutage.statusCode, 503);
-    assert.equal(store.list("job").length, 1);
+    assert.equal((await store.list("job")).length, 1);
   } finally {
     await app.close();
     rmSync(directory, { recursive: true, force: true });
@@ -260,7 +259,7 @@ test("queued SQL jobs revalidate changed or deleted endpoints and outages before
             ? []
             : [row()];
       unavailable = scenario === "outage";
-      store.put("job", scenario, {
+      await store.put("job", scenario, {
         id: scenario,
         state: "queued",
         printer: snapshot,
@@ -274,8 +273,8 @@ test("queued SQL jobs revalidate changed or deleted endpoints and outages before
       queue.kick(snapshot.id);
       await new Promise<void>((resolve, reject) => {
         const started = Date.now();
-        const timer = setInterval(() => {
-          const job = store.get("job", scenario);
+        const timer = setInterval(async () => {
+          const job = await store.get("job", scenario);
           if (job.state === "failed") {
             clearInterval(timer);
             resolve();
@@ -285,7 +284,7 @@ test("queued SQL jobs revalidate changed or deleted endpoints and outages before
           }
         }, 10);
       });
-      const failed = store.get("job", scenario);
+      const failed = await store.get("job", scenario);
       assert.equal(failed.state, "failed");
       assert.doesNotMatch(failed.error, /Unexpected TCP|hidden password/);
     }

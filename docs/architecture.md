@@ -1,6 +1,6 @@
 # Architecture
 
-The browser owns editing/history and draft recovery. `shared/model.ts` validates physical-unit projects. Node owns authentication, SQLite revisions, assets, compilation and network jobs. There is no runtime dependency on BarTender.
+The browser owns editing/history and draft recovery. `shared/model.ts` validates physical-unit projects. Node owns authentication, revisions, assets, compilation and network jobs. Application storage selects SQLite (default) or SQL Server; SQL mode stores asset bytes in the database and never opens SQLite. See [SQL setup and migration](sql-storage.md). There is no runtime dependency on BarTender.
 
 Rendering quantizes micrometres once, resolves data, validates fonts/glyphs/barcodes/bounds and rasterizes locally in pinned Chromium/Sharp. Native shapes are emitted only when every dot agrees. Overlapping/rotated objects retain composite order. Rendering concurrency is bounded. `/api/render` is ephemeral; `/api/compile` persists immutable snapshots.
 
@@ -37,6 +37,6 @@ CSV headers must match required fields exactly, in any order. Duplicate/missing/
 
 Users select a location before a printer; printer options are filtered by the integer catalog location. Unassigned printers have a separate option. A location change clears the selected printer and preparation. Server preparation validates location membership; later printer/location changes invalidate submission through the existing snapshot comparison.
 
-Publication/version and preparation records use the existing SQLite records store. Draft saves never change published snapshots. Publication assets and historical snapshots are retained; no asset garbage collection or automatic publication migration is performed. Already queued jobs retain their compiled data when a publication is replaced or withdrawn.
+Publication/version and preparation records use the selected application records store. Draft saves never change published snapshots. Publication assets and historical snapshots are retained; no asset garbage collection or automatic publication migration is performed. Already queued jobs retain their compiled data when a publication is replaced or withdrawn.
 
 Portable projects contain manifest/assets and are bounded before decompression. BTW envelope readability is separate from tested editable support; unresolved essential content blocks printing.

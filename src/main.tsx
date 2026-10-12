@@ -55,7 +55,7 @@ function Bootstrap() {
   return (
     <main className="login">
       <div className="login-card">
-        <div className="brand-mark">B</div>
+        <img className="brand-mark" src="/branding/barista-icon-192.png" alt="" width="47" height="47" />
         <h1>Barista Labels</h1>
         <p>A familiar workspace for precision labels.</p>
         {error && <div className="alert alert-error">{error}</div>}

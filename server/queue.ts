@@ -1,5 +1,5 @@
 import net from "node:net";
-import type { Store } from "./store.js";
+import type { Storage } from "./storage.js";
 export type JobState =
   "queued" | "sending" | "sent" | "failed" | "outcome-unknown" | "cancelled";
 export interface PrintJob {
@@ -21,41 +21,58 @@ export class PrintQueue {
   private tasks = new Set<Promise<void>>();
   private stopped = false;
   constructor(
-    private store: Store,
+    private store: Storage,
     private beforeSend?: (printer: any) => Promise<void>,
-  ) {
-    for (const job of store.jobsInState("sending"))
-      this.update(
+    private storageFailure?: () => void,
+  ) {}
+  async recover() {
+    for (const job of await this.store.jobsInState("sending"))
+      await this.update(
         job,
         "outcome-unknown",
         "Server restarted during transmission",
       );
   }
-  private update(job: PrintJob, state: JobState, error?: string) {
+  private async update(job: PrintJob, state: JobState, error?: string) {
     Object.assign(job, { state, error, updatedAt: new Date().toISOString() });
-    this.store.put("job", job.id, job);
+    await this.store.put("job", job.id, job);
   }
-  start() {
-    for (const printerId of this.store.queuedPrinterIds()) this.kick(printerId);
+  async start() {
+    for (const printerId of await this.store.queuedPrinterIds())
+      this.kick(printerId);
   }
   async stop() {
     this.stopped = true;
     await Promise.allSettled(this.tasks);
   }
   kick(printerId: string) {
+    this.store.afterCommit(() => this.launch(printerId));
+  }
+  private launch(printerId: string) {
     if (this.stopped || this.active.has(printerId)) return;
     this.active.add(printerId);
-    const task = this.run(printerId).finally(() => {
-      this.active.delete(printerId);
-      this.tasks.delete(task);
-    });
+    const task = this.run(printerId)
+      .catch(() => {
+        // A storage outage stops this worker. Durable sending jobs remain uncertain;
+        // they are recovered on restart, never automatically transmitted again.
+        this.stopped = true;
+        this.storageFailure?.();
+      })
+      .finally(() => {
+        this.active.delete(printerId);
+        this.tasks.delete(task);
+      });
     this.tasks.add(task);
   }
   private async run(printerId: string) {
     while (!this.stopped) {
-      const job = this.store.nextQueuedJob(printerId) as PrintJob | undefined;
+      const job = await this.store.transaction(async () => {
+        const next = (await this.store.nextQueuedJob(printerId)) as
+          PrintJob | undefined;
+        if (next) await this.update(next, "sending");
+        return next;
+      });
       if (!job) return;
-      this.update(job, "sending");
       let transmitted = false;
       try {
         await this.beforeSend?.(job.printer);
@@ -85,9 +102,9 @@ export class PrintQueue {
             if (!settled) done(new Error("Printer connection closed"));
           });
         });
-        this.update(job, "sent");
+        await this.update(job, "sent");
       } catch (error) {
-        this.update(
+        await this.update(
           job,
           transmitted ? "outcome-unknown" : "failed",
           String((error as Error).message),
@@ -95,15 +112,17 @@ export class PrintQueue {
       }
     }
   }
-  cancel(id: string) {
-    const job = this.store.get<PrintJob>("job", id);
-    if (!job)
-      throw Object.assign(new Error("Job not found"), { statusCode: 404 });
-    if (job.state !== "queued")
-      throw Object.assign(new Error("Only queued jobs can be cancelled"), {
-        statusCode: 409,
-      });
-    this.update(job, "cancelled");
-    return job;
+  async cancel(id: string) {
+    return this.store.transaction(async () => {
+      const job = await this.store.get<PrintJob>("job", id);
+      if (!job)
+        throw Object.assign(new Error("Job not found"), { statusCode: 404 });
+      if (job.state !== "queued")
+        throw Object.assign(new Error("Only queued jobs can be cancelled"), {
+          statusCode: 409,
+        });
+      await this.update(job, "cancelled");
+      return job;
+    });
   }
 }

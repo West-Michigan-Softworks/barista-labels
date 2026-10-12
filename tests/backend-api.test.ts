@@ -7,7 +7,6 @@ import { zipSync, strToU8 } from "fflate";
 import net from "node:net";
 import { createApp } from "../server/app.js";
 import { newProject, zt411 } from "../shared/model.js";
-
 test("persisted compilation sends once to local fake printer and detects changed profiles", async () => {
   const directory = mkdtempSync(join(tmpdir(), "barista-print-api-"));
   const chunks: Buffer[] = [];
@@ -23,7 +22,7 @@ test("persisted compilation sends once to local fake printer and detects changed
   });
   try {
     const profile = { ...zt411, id: "test-printer", host: "127.0.0.1", port };
-    store.put("printer", profile.id, profile);
+    await store.put("printer", profile.id, profile);
     const project = newProject();
     const compilation = await app.inject({
       method: "POST",
@@ -38,7 +37,10 @@ test("persisted compilation sends once to local fake printer and detects changed
     assert.equal(compilation.statusCode, 200);
     const c = compilation.json();
     project.name = "Changed after compilation";
-    assert.notEqual(store.get("compilation", c.id).project.name, project.name);
+    assert.notEqual(
+      (await store.get("compilation", c.id)).project.name,
+      project.name,
+    );
     const payload = { compilationId: c.id, idempotencyKey: "same-request" };
     const first = await app.inject({
       method: "POST",
@@ -48,18 +50,18 @@ test("persisted compilation sends once to local fake printer and detects changed
     assert.equal(first.statusCode, 200);
     assert.equal(first.json().quantity, 2);
     assert.equal(first.json().zpl, undefined);
-    assert.equal(store.get("job", first.json().id).zpl, c.zpl);
+    assert.equal((await store.get("job", first.json().id)).zpl, c.zpl);
     const duplicate = await app.inject({
       method: "POST",
       url: "/api/jobs",
       payload,
     });
     assert.equal(duplicate.json().id, first.json().id);
-    assert.equal(store.list("job").length, 1);
+    assert.equal((await store.list("job")).length, 1);
     await new Promise<void>((resolve, reject) => {
       const started = Date.now();
-      const timer = setInterval(() => {
-        const job = store.get("job", first.json().id);
+      const timer = setInterval(async () => {
+        const job = await store.get("job", first.json().id);
         if (job.state === "sent" && chunks.length) {
           clearInterval(timer);
           resolve();
@@ -97,21 +99,20 @@ test("persisted compilation sends once to local fake printer and detects changed
       payload: { compilationId: "another", idempotencyKey: "same-request" },
     });
     assert.equal(keyReuse.statusCode, 409);
-    store.put("printer", profile.id, { ...profile, offsetX: 1 });
+    await store.put("printer", profile.id, { ...profile, offsetX: 1 });
     const changed = await app.inject({
       method: "POST",
       url: "/api/jobs",
       payload: { compilationId: c.id, idempotencyKey: "new-request" },
     });
     assert.equal(changed.statusCode, 409);
-    assert.equal(store.list("job").length, 1);
+    assert.equal((await store.list("job")).length, 1);
   } finally {
     await app.close();
     await new Promise<void>((resolve) => printer.close(() => resolve()));
     rmSync(directory, { recursive: true, force: true });
   }
 });
-
 test("malformed HTTP body receives a client error", async () => {
   const directory = mkdtempSync(join(tmpdir(), "barista-body-"));
   const { app } = createApp({
@@ -148,7 +149,6 @@ test("malformed HTTP body receives a client error", async () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
-
 test("API preserves projects and diagnostics in portable archives; rejects unsafe input", async () => {
   const dir = mkdtempSync(join(tmpdir(), "barista-api-"));
   const { app } = createApp({
@@ -240,7 +240,7 @@ test("API restricts administration and cancellation to owner or administrator", 
       ).statusCode,
       403,
     );
-    store.put("job", "other", {
+    await store.put("job", "other", {
       id: "other",
       state: "queued",
       userId: "someone-else",
@@ -325,7 +325,7 @@ test("API validates preview printer and records immutable compilation quantities
     const result = compiled.json();
     assert.equal(result.quantity, 3);
     assert.match(result.zpl, /\^PQ3/);
-    assert.equal(store.get("compilation", result.id).quantity, 3);
+    assert.equal((await store.get("compilation", result.id)).quantity, 3);
     const rendered = await app.inject({
       method: "POST",
       url: "/api/render",
@@ -334,7 +334,7 @@ test("API validates preview printer and records immutable compilation quantities
     assert.equal(rendered.statusCode, 200);
     assert.ok(rendered.json().previewBase64);
     assert.equal(rendered.json().zpl, undefined);
-    assert.equal(store.list("compilation").length, 1);
+    assert.equal((await store.list("compilation")).length, 1);
     const printerNotConfigured = await app.inject({
       method: "POST",
       url: "/api/jobs",

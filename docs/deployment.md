@@ -24,11 +24,14 @@ The API validates signature, issuer, audience, tenant, expiry, scope and roles. 
 
 ## LAN service
 
+Application storage defaults to SQLite. For SQL Server provisioning, environment
+settings, offline migration, and backups, see [SQL storage](sql-storage.md).
+
 Use a dedicated Node24 service account with a persistent writable data directory. Install dependencies/pinned Chromium, build, then `npm start`. Put the same-origin app/API behind an HTTPS reverse proxy. Keep development authentication disabled and limit access to the intended LAN.
 
 Windows rendering uses installed Arial/Courier New/Times New Roman files without distributing them. Linux requires Liberation fonts at `/usr/share/fonts/truetype/liberation2` and Playwright's browser OS dependencies. Missing fonts/glyphs fail explicitly. Administrators may upload TTF/OTF files and attach them to projects.
 
-Chromium cache defaults to `.cache/ms-playwright`; `PLAYWRIGHT_BROWSERS_PATH` overrides it. Keep browser revision and package lock together. Back up SQLite and assets consistently, preferably with the service stopped. Interrupted `sending` jobs become `outcome-unknown` on restart and are never automatically resent.
+Chromium cache defaults to `.cache/ms-playwright`; `PLAYWRIGHT_BROWSERS_PATH` overrides it. Keep browser revision and package lock together. In SQLite mode, back up the database and assets consistently, preferably with the service stopped. In SQL Server mode, a database backup includes both records and assets. Interrupted `sending` jobs become `outcome-unknown` on restart and are never automatically resent.
 
 ## Printers
 

@@ -101,6 +101,7 @@ function Artwork({
       <Rect
         width={w}
         height={h}
+        cornerRadius={Math.min(e.cornerRadiusUm ?? 0, e.widthUm / 2, e.heightUm / 2) * scale}
         stroke="black"
         strokeWidth={e.strokeUm * scale}
         fill={e.fill === "none" ? undefined : e.fill}
