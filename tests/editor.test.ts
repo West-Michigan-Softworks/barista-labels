@@ -8,7 +8,21 @@ import {
   redo,
   moveSelection,
   elementBounds,
+  recoveredDrafts,
+  nextFieldName,
 } from "../src/editor.ts";
+test("draft recovery tolerates corrupt storage and ignores invalid entries", () => {
+  const project = demoProject();
+  assert.deepEqual(recoveredDrafts("broken JSON"), []);
+  assert.deepEqual(recoveredDrafts("null"), []);
+  assert.deepEqual(recoveredDrafts("[]"), []);
+  const results = recoveredDrafts(JSON.stringify({ good: { project, revision: 2 }, bad: { project: {} } }));
+  assert.equal(results.length, 1); assert.equal(results[0].revision, 2);
+});
+test("adding named fields after deletions does not reuse an existing identifier", () => {
+  assert.equal(nextFieldName(["field_1", "field_3"]), "field_2");
+  assert.equal(nextFieldName(["field_2"]), "field_1");
+});
 test("history preserves undo and redo snapshots without mutation", () => {
   const p = demoProject();
   const h = { past: [], present: p, future: [] };

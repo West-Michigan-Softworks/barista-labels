@@ -1,4 +1,21 @@
 import type { Project, LabelElement } from "../shared/model";
+import { projectSchema } from "../shared/model";
+export function recoveredDrafts(value: string | null): { project: Project; revision: number }[] {
+  try {
+    const drafts: unknown = JSON.parse(value ?? "{}");
+    if (!drafts || typeof drafts !== "object" || Array.isArray(drafts)) return [];
+    return Object.values(drafts).flatMap(draft => {
+      if (!draft || typeof draft !== "object") return [];
+      const parsed = projectSchema.safeParse(draft.project);
+      return parsed.success ? [{ project: parsed.data, revision: Number.isInteger(draft.revision) && draft.revision >= 0 ? draft.revision : 0 }] : [];
+    });
+  } catch { return []; }
+}
+export function nextFieldName(names: string[]): string {
+  let n = 1;
+  while (names.includes(`field_${n}`)) n++;
+  return `field_${n}`;
+}
 export type History = { past: Project[]; present: Project; future: Project[] };
 export function transition(history: History, next: Project): History {
   return JSON.stringify(history.present) === JSON.stringify(next)

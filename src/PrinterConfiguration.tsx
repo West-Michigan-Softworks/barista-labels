@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { id, zt411, type PrinterProfile } from "../shared/model";
 import { api } from "./api";
+import Modal from "./Modal";
 
 export default function PrinterConfiguration({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
   const [printers, setPrinters] = useState<PrinterProfile[]>([]);
@@ -22,40 +23,35 @@ export default function PrinterConfiguration({ onClose, onChanged }: { onClose: 
     finally { locked.current = false; setBusy(false); }
   };
   useEffect(() => { void run(refresh); }, []);
-  return <div className="modal modal-open" role="dialog" aria-modal="true" aria-label="Printer Configuration">
-    <div className="modal-box desktop-dialog wide">
-      <header><h2>Printer Configuration</h2><button className="btn btn-ghost btn-xs" aria-label="Close dialog" disabled={busy} onClick={onClose}>×</button></header>
-      <div className="dialog-body">
+  return <Modal title="Printer Configuration" onClose={onClose} wide busy={busy}>
         {error && <p className="alert alert-error" role="alert">{error}</p>}
         {message && <p role="status">{message}</p>}
         {warnings.map((warning, i) => <p className="diagnostic warning" key={i}>{warning}</p>)}
-        <button className="btn btn-sm" disabled={busy} onClick={() => void run(refresh)}>Refresh printer list</button>
+        <button data-editor-control="PrinterConfiguration-001" className="btn btn-sm" disabled={busy} onClick={() => void run(refresh)}>Refresh printer list</button>
         <div className="printer-grid"><div className="printer-list">
-          {printers.map(p => <button key={p.id} disabled={busy} className={draft.id === p.id ? "selected" : ""} onClick={() => setDraft(p)}>{p.name}</button>)}
-          <button disabled={busy} onClick={() => setDraft({ ...zt411, id: id(), name: "Zebra ZT411" })}>New printer</button>
+          {printers.map(p => <button data-editor-control="PrinterConfiguration-002" key={p.id} disabled={busy} className={draft.id === p.id ? "selected" : ""} onClick={() => setDraft(p)}>{p.name}</button>)}
+          <button data-editor-control="PrinterConfiguration-003" disabled={busy} onClick={() => setDraft({ ...zt411, id: id(), name: "Zebra ZT411" })}>New printer</button>
         </div><div>
           {sql && <p>Managed by BYAPPS · LabelPrint · dbo.printersZPL. Edit this printer in the source table.</p>}
           {(["name", "host", "port", "dotsPerMm", "widthDots", "offsetX", "offsetY"] as const).map(key => <label className="property-field" key={key}>
             <span>{{ name: "Name", host: "IP address / hostname", port: "TCP port", dotsPerMm: "Dots per mm", widthDots: "Printable width (dots)", offsetX: "X offset (dots)", offsetY: "Y offset (dots)" }[key]}</span>
-            <input disabled={sql || busy} type={key === "name" || key === "host" ? "text" : "number"} value={draft[key]} onChange={e => setDraft({ ...draft, [key]: key === "name" || key === "host" ? e.target.value : Number(e.target.value) })} />
+            <input data-editor-control="PrinterConfiguration-004" disabled={sql || busy} type={key === "name" || key === "host" ? "text" : "number"} value={draft[key]} onChange={e => setDraft({ ...draft, [key]: key === "name" || key === "host" ? e.target.value : Number(e.target.value) })} />
           </label>)}
-          <label className="property-field"><span>Location number</span><input type="number" step={1} disabled={sql || busy} value={draft.location ?? ""} onChange={e => setDraft({ ...draft, location: e.target.value === "" ? null : Number(e.target.value) })} /></label>
-          <label className="property-field"><span>Media</span><select disabled={sql || busy} value={draft.media ?? "gap"} onChange={e => setDraft({ ...draft, media: e.target.value as PrinterProfile["media"] })}>
+          <label className="property-field"><span>Location number</span><input data-editor-control="PrinterConfiguration-005" type="number" step={1} disabled={sql || busy} value={draft.location ?? ""} onChange={e => setDraft({ ...draft, location: e.target.value === "" ? null : Number(e.target.value) })} /></label>
+          <label className="property-field"><span>Media</span><select data-editor-control="PrinterConfiguration-006" aria-label="Media" disabled={sql || busy} value={draft.media ?? "gap"} onChange={e => setDraft({ ...draft, media: e.target.value as PrinterProfile["media"] })}>
             <option value="gap">Gap / web</option><option value="continuous">Continuous</option><option value="mark">Black mark</option>
           </select></label>
           <div className="dialog-actions">
-            <button className="btn btn-sm" disabled={busy || !printers.some(p => p.id === draft.id)} onClick={() => void run(async () => { await api(`/printers/${draft.id}/check`, {}); setMessage("TCP connection succeeded; no label was printed"); })}>Check connection</button>
-            <button className="btn btn-primary btn-sm" disabled={sql || busy} onClick={() => void run(async () => {
+            <button data-editor-control="PrinterConfiguration-007" className="btn btn-sm" disabled={busy || !printers.some(p => p.id === draft.id)} onClick={() => void run(async () => { await api(`/printers/${draft.id}/check`, {}); setMessage("TCP connection succeeded; no label was printed"); })}>Check connection</button>
+            <button data-editor-control="PrinterConfiguration-008" className="btn btn-primary btn-sm" disabled={sql || busy} onClick={() => void run(async () => {
               const exists = printers.some(p => p.id === draft.id);
               const saved = await api<PrinterProfile>(exists ? `/printers/${draft.id}` : "/printers", draft, exists ? "PUT" : "POST");
               setDraft(saved); await refresh(); onChanged(); setMessage("Printer profile saved");
             })}>Save printer</button>
-            <button className="btn btn-sm" disabled={sql || busy || !printers.some(p => p.id === draft.id)} onClick={() => {
+            <button data-editor-control="PrinterConfiguration-009" className="btn btn-sm" disabled={sql || busy || !printers.some(p => p.id === draft.id)} onClick={() => {
               if (window.confirm(`Delete printer ${draft.name}?`)) void run(async () => { await api(`/printers/${draft.id}`, undefined, "DELETE"); setDraft({ ...zt411, id: id(), name: "Zebra ZT411" }); await refresh(); onChanged(); });
             }}>Delete printer</button>
           </div>
         </div></div>
-      </div>
-    </div>
-  </div>;
+  </Modal>;
 }

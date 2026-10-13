@@ -15,6 +15,7 @@ import Konva from "konva";
 import { fitBarcode, printerDots } from "../shared/barcode";
 import type { LabelElement, LabelTemplate, Project } from "../shared/model";
 import { resolveFields } from "../shared/model";
+import { elementBounds } from "./editor";
 function useImage(url?: string) {
   const [img, setImg] = useState<HTMLImageElement>();
   useEffect(() => {
@@ -166,6 +167,7 @@ export default function Canvas({
   authoritativePreview,
   dotsPerMm,
   onGuideChange,
+  auditId,
 }: {
   template: LabelTemplate;
   project: Project;
@@ -182,6 +184,7 @@ export default function Canvas({
   authoritativePreview?: string;
   dotsPerMm: number;
   onGuideChange: (guides: NonNullable<LabelTemplate["guides"]>) => void;
+  auditId?: string;
 }) {
   const container = useRef<HTMLDivElement>(null),
     stage = useRef<Konva.Stage>(null),
@@ -223,7 +226,8 @@ export default function Canvas({
       if (!container.current?.getClientRects().length) return;
       if (
         e.code === "Space" &&
-        !/INPUT|TEXTAREA|SELECT/.test((e.target as HTMLElement).tagName)
+        !/INPUT|TEXTAREA|SELECT|BUTTON|SUMMARY/.test((e.target as HTMLElement).tagName) &&
+        !document.querySelector('[role="dialog"]')
       ) {
         setSpace(true);
         e.preventDefault();
@@ -232,15 +236,17 @@ export default function Canvas({
     const up = () => setSpace(false);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", up);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", up);
     };
   }, []);
   useEffect(() => {
     const nodes = selected
       .filter((id) => !template.elements.find((e) => e.id === id)?.locked)
-      .map((id) => stage.current?.findOne("#" + id))
+      .map((id) => stage.current?.findOne((node: Konva.Node) => node.id() === id))
       .filter((n): n is Konva.Node => !!n);
     transformer.current?.nodes(nodes);
   }, [selected, template, zoom]);
@@ -326,6 +332,16 @@ export default function Canvas({
   return (
     <div
       className="canvas-container"
+      data-editor-control={auditId}
+      role="region"
+      aria-label="Label canvas"
+      tabIndex={0}
+      onDoubleClick={() => {
+        const pointer = stage.current?.getPointerPosition();
+        const target = pointer ? stage.current?.getIntersection(pointer) : undefined;
+        if (target?.getAncestors().some(node => template.elements.some(e => e.id === node.id())))
+          requestAnimationFrame(onDoubleClick);
+      }}
       data-authoritative={preview ? "true" : "false"}
       ref={container}
       style={{ cursor: space ? "grab" : "default" }}
@@ -372,8 +388,9 @@ export default function Canvas({
             });
         }}
         onMouseUp={() => {
-          if (guidePreview) {
+          if (guideAxis.current) {
             if (
+              guidePreview &&
               guidePreview.positionUm >= 0 &&
               guidePreview.positionUm <=
                 (guidePreview.axis === "x"
@@ -395,14 +412,12 @@ export default function Canvas({
               bottom = y + Math.abs(marquee.h);
             onSelect(
               template.elements
-                .filter(
-                  (e) =>
-                    e.xUm * scale >= x &&
-                    e.yUm * scale >= y &&
-                    (e.xUm + e.widthUm) * scale <= right &&
-                    (e.yUm + e.heightUm) * scale <= bottom,
-                )
-                .map((e) => e.id),
+                .filter((e) => {
+                  const bounds = elementBounds(e);
+                  return bounds.left * scale >= x && bounds.top * scale >= y && bounds.right * scale <= right && bounds.bottom * scale <= bottom;
+                })
+                .flatMap((e) => e.groupId ? template.elements.filter(peer => peer.groupId === e.groupId).map(peer => peer.id) : [e.id])
+                .filter((id, i, ids) => ids.indexOf(id) === i),
             );
           }
           start.current = undefined;
@@ -553,7 +568,6 @@ export default function Canvas({
                   draggable={!e.locked && !space}
                   onMouseDown={(ev) => choose(e, ev)}
                   onTap={(ev) => choose(e, ev)}
-                  onDblClick={onDoubleClick}
                   onDragEnd={(ev) => update(e, ev.target)}
                 >
                   <Rect
@@ -579,7 +593,7 @@ export default function Canvas({
               ref={transformer}
               onTransformEnd={() => {
                 const nodes = new Map(
-                  selected.map((id) => [id, stage.current?.findOne("#" + id)]),
+                  selected.map((id) => [id, stage.current?.findOne((node: Konva.Node) => node.id() === id)]),
                 );
                 onChange(
                   template.elements.map((e) => {

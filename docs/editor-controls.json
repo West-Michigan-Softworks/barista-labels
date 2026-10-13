@@ -1,0 +1,1572 @@
+[
+  {
+    "id": "App-001",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\".btw,.barista\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": true
+  },
+  {
+    "id": "App-002",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"image/png,image/jpeg,image/webp\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": true
+  },
+  {
+    "id": "App-003",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\".csv\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": true
+  },
+  {
+    "id": "App-004",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\".ttf,.otf\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": true
+  },
+  {
+    "id": "App-005",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Label name\"",
+    "events": [
+      "onFocus",
+      "onChange",
+      "onBlur",
+      "onKeyDown"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-006",
+    "file": "src/App.tsx",
+    "tag": "span",
+    "label": "{project.name} {dirty ? \" *\" : \"\"}",
+    "events": [
+      "onDoubleClick",
+      "onKeyDown"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-007",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "{publication?.published ? \"Republish label\" : \"Publish label\"}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-008",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Unpublish label",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-009",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Switch to Printer",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-010",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Sign out\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-011",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "{k}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-120",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "\"Dismiss menu\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-012",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "{label}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-013",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"New project\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-014",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Open project\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-015",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Save project (Ctrl+S)\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-016",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Page setup\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-017",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Named fields and CSV\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-018",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Print (Ctrl+P)\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-019",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Print preview\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-020",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Cut\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-021",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Copy\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-022",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Paste\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-023",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Undo\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-024",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Redo\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-025",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Select objects\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-026",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "{`Insert ${t}`}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-027",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Zoom in\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-028",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Zoom out\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-029",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "\"Zoom\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-030",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Snap to grid and objects\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-031",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Show grid\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-032",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "\"Font family\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-033",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Font size in points\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-034",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "\"Bold\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-035",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "{`Text align ${a}`}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-036",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Line thickness mm\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-037",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "\"Display units\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-038",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "\"Dismiss error\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-039",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Data Sources",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-040",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<Icon size={15} /> <span>{e.name}</span> {e.locked && <LockKeyhole size={11} />}",
+    "events": [
+      "onClick",
+      "onDoubleClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-041",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "\"Edit named fields\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-042",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<Database size={13} /> {v.name}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-043",
+    "file": "src/App.tsx",
+    "tag": "Canvas",
+    "label": "Canvas",
+    "events": [
+      "onSelect",
+      "onChange",
+      "onGuideChange",
+      "onDoubleClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-044",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "{t.name}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-045",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "\"Add template\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-046",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "{current.locked ? \"Unlock selection\" : \"Lock selection\"}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-047",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Object name\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-048",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "{k}",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-049",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Rotation\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-050",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "\"Text data source\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-051",
+    "file": "src/App.tsx",
+    "tag": "textarea",
+    "label": "\"Text content\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-052",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "\"Barcode data source\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-053",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "{symbologies.map((s) => ( <option key={s}>{s}</option> ))}",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-054",
+    "file": "src/App.tsx",
+    "tag": "textarea",
+    "label": "\"Barcode data\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-055",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Corner radius\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-056",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Thickness\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-057",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "<option>none</option> <option>black</option> <option>white</option>",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-058",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "{String(label)}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-059",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Bring to front\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-060",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Send to back\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-061",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Rotate 90 degrees\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-062",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Group\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-063",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Ungroup\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-064",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Delete selection\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-065",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Centre on label ↔",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-066",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Centre on label ↕",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-067",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Distribute horizontally",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-068",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Distribute vertically",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-069",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Page setup",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-070",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Align left\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-071",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Align right\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-072",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Align top\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-073",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Align bottom\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-074",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Centre horizontal\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-075",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Centre vertical\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-076",
+    "file": "src/App.tsx",
+    "tag": "Tool",
+    "label": "\"Rotate\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-077",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Create blank project",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-078",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Open receiving-label example",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-079",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<span>{d.project.name}</span> <small>Recovered local draft</small>",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-080",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Open latest revision",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-081",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Keep edits as new project",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-082",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<FolderOpen size={15} /> Import file",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-083",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<Layers size={22} /> <span> <b>{p.name}</b> <small> {p.templates.length} template(s) · revision {p.revision} </small> </span> <span> {p.updatedAt ? new Date(p.updatedAt).toLocaleDa",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-084",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Page",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-085",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Layout",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-086",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Project name\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-087",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Template name\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-088",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "{`${k === \"widthUm\" ? \"Width\" : \"Height\"} (${unit})`}",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-089",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "<option value=\"landscape\">Landscape</option> <option value=\"portrait\">Portrait</option>",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-090",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Swap Width & Height ( {Number((template.heightUm / factor).toFixed(1))} × {Number((template.widthUm / factor).toFixed(1))} {unit} )",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-091",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Rows\"",
+    "events": [],
+    "conditional": false,
+    "readOnly": true,
+    "hidden": false
+  },
+  {
+    "id": "App-092",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Columns\"",
+    "events": [],
+    "conditional": false,
+    "readOnly": true,
+    "hidden": false
+  },
+  {
+    "id": "App-093",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "{`Margins (${unit})`}",
+    "events": [],
+    "conditional": false,
+    "readOnly": true,
+    "hidden": false
+  },
+  {
+    "id": "App-094",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "OK",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-095",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "<option value={zt411.id}> ZT411 · 203 dpi (preview only) </option> {printers.map((p) => ( <option key={p.id} value={p.id}> {p.name} </option> ))}",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-096",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Refresh printers",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-097",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Identical copies\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-098",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "{v.name}",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": true,
+    "hidden": false
+  },
+  {
+    "id": "App-099",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<ScanEye size={15} /> Generate preview",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-100",
+    "file": "src/App.tsx",
+    "tag": "summary",
+    "label": "Generated ZPL",
+    "events": [],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-101",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<Download size={14} /> Download ZPL",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-102",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<Printer size={14} /> Print",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-103",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Field name\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-104",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Default value\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-105",
+    "file": "src/App.tsx",
+    "tag": "textarea",
+    "label": "\"Named formula\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-106",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "\"Named source type\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-107",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "\"Remove field\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-108",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<Plus size={14} /> Add named field",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-109",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Load CSV",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-110",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "<option value=\"\">Choose CSV column</option> {csvFields.map((f) => ( <option key={f}>{f}</option> ))}",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-111",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "<option value=\"\">Use print quantity ({quantity})</option> {csvFields.map((f) => ( <option key={f}>{f}</option> ))}",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-112",
+    "file": "src/App.tsx",
+    "tag": "input",
+    "label": "\"Preview row\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-113",
+    "file": "src/App.tsx",
+    "tag": "select",
+    "label": "<option value={zt411.id}>Choose configured printer</option> {printers.map((p) => ( <option key={p.id} value={p.id}> {p.name} </option> ))}",
+    "events": [
+      "onChange"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-114",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Validate & queue batch",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-115",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Reprint",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-116",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Cancel",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-117",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "<span>Revision {r.revision}</span> <small> {r.project.updatedAt ? new Date(r.project.updatedAt).toLocaleString() : \"\"} </small>",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-118",
+    "file": "src/App.tsx",
+    "tag": "button",
+    "label": "Open imported project",
+    "events": [
+      "onClick"
+    ],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "App-119",
+    "file": "src/App.tsx",
+    "tag": "summary",
+    "label": "Formula functions and fields",
+    "events": [],
+    "conditional": false,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "Modal-001",
+    "file": "src/Modal.tsx",
+    "tag": "button",
+    "label": "\"Close dialog\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "Modal-002",
+    "file": "src/Modal.tsx",
+    "tag": "button",
+    "label": "\"Close\"",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-001",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "button",
+    "label": "Refresh printer list",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-002",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "button",
+    "label": "{p.name}",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-003",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "button",
+    "label": "New printer",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-004",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "input",
+    "label": "input",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-005",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "input",
+    "label": "input",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-006",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "select",
+    "label": "\"Media\"",
+    "events": [
+      "onChange"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-007",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "button",
+    "label": "Check connection",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-008",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "button",
+    "label": "Save printer",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  },
+  {
+    "id": "PrinterConfiguration-009",
+    "file": "src/PrinterConfiguration.tsx",
+    "tag": "button",
+    "label": "Delete printer",
+    "events": [
+      "onClick"
+    ],
+    "conditional": true,
+    "readOnly": false,
+    "hidden": false
+  }
+]

@@ -15,7 +15,9 @@
     "test": "tsx --test tests/*.test.ts",
     "check": "tsc --noEmit",
     "storage:migrate": "node --env-file-if-exists=.env --import tsx tools/migrate-storage.ts",
-    "browser:install": "node tools/install-browser.mjs"
+    "browser:install": "node tools/install-browser.mjs",
+    "test:editor-ui": "node tools/editor-ui-audit.mjs",
+    "audit:editor-inventory": "node tools/editor-control-inventory.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "^4.0.0",

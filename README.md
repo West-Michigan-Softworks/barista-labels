@@ -51,9 +51,13 @@ npm run check
 npm run build
 npm test
 node tools/ui-smoke.mjs
+npm run audit:editor-inventory
+npm run test:editor-ui
 ```
 
 Tests cover raster/ZPL reconstruction, barcode/Unicode/geometry validation, malformed BTW envelopes, revisions and portable assets, role boundaries, publication lifecycle, CSV validation, and temporary **local fake printer** delivery. Browser tests use isolated loopback storage and a fake TCP printer; no physical printers are contacted. Restricted environments may need permission for loopback sockets and Chromium processes.
+
+The [editor interaction audit](docs/editor-audit.md) accounts for every interactive editor source site, including conditional dialogs and canvas gestures. Its browser coverage gate rejects unverified or unaccounted-for controls. Run `npm run build` before the browser suites; install Chromium with `npm run browser:install` if needed.
 
 ## Research ownership
 

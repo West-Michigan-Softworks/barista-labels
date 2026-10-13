@@ -1,5 +1,5 @@
 import { evaluateFormula, resolveFormulaSources, formulaFunctions } from "../shared/formula";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Children, cloneElement, createContext, isValidElement, useContext, useEffect, useId, useRef, useState, type ReactNode, type ReactElement } from "react";
 import {
   FilePlus2,
   FolderOpen,
@@ -64,11 +64,15 @@ import {
 } from "../shared/model";
 import Canvas from "./Canvas";
 import { api, base64, download, saveBlob } from "./api";
-import { arrange, transition, undo, redo, type History } from "./editor";
+import { arrange, transition, undo, redo, recoveredDrafts, nextFieldName, type History } from "./editor";
 import Papa from "papaparse";
 import { usePreview } from "./usePreview";
 import PrinterConfiguration from "./PrinterConfiguration";
 import type { PublishedLabel } from "../shared/publishing";
+import Modal from "./Modal";
+import { actionUnavailable } from "./editor-actions";
+
+const ActionReason = createContext<(label: string) => string | undefined>(() => undefined);
 
 const iconFor = (type: string) =>
   ({
@@ -85,66 +89,41 @@ function Tool({
   onClick,
   active,
   disabled = false,
+  auditId,
 }: {
   icon: any;
   label: string;
   onClick: () => void;
   active?: boolean;
   disabled?: boolean;
+  auditId?: string;
 }) {
+  const reason = useContext(ActionReason)(label);
   return (
     <button
-      title={label}
+      title={reason ? `${label}: ${reason}` : label}
       aria-label={label}
       className={`tool btn btn-ghost btn-xs ${active ? "active" : ""}`}
-      disabled={disabled}
+      disabled={disabled || !!reason}
+      data-editor-control={auditId}
+      aria-pressed={active}
       onClick={onClick}
     >
       <Icon size={17} strokeWidth={1.7} />
     </button>
   );
 }
-function Modal({
-  title,
-  children,
-  onClose,
-  wide = false,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-  wide?: boolean;
-}) {
-  return (
-    <div
-      className="modal modal-open"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div className={`modal-box desktop-dialog ${wide ? "wide" : ""}`}>
-        <header>
-          <h2>{title}</h2>
-          <button
-            className="btn btn-ghost btn-xs"
-            aria-label="Close dialog"
-            onClick={onClose}
-          >
-            <X size={17} />
-          </button>
-        </header>
-        <div className="dialog-body">{children}</div>
-      </div>
-      <button className="modal-backdrop" aria-label="Close" onClick={onClose} />
-    </div>
-  );
-}
 function Field({ label, children }: { label: string; children: ReactNode }) {
+  const labelId = useId();
   return (
-    <label className="property-field">
-      <span>{label}</span>
-      {children}
-    </label>
+    <div className="property-field">
+      <label className="property-label" id={labelId} htmlFor={`${labelId}-control`}>{label}</label>
+      {Children.map(children, child => {
+        if (!isValidElement(child) || !["input", "select", "textarea"].includes(String(child.type))) return child;
+        const control = child as ReactElement<{ id?: string; "aria-label"?: string; "aria-labelledby"?: string }>;
+        return cloneElement(control, { id: control.props.id ?? `${labelId}-control`, ...(!control.props["aria-label"] ? { "aria-labelledby": labelId } : {}) });
+      })}
+    </div>
   );
 }
 type SavedProject = Project & { revision: number; updatedAt?: string };
@@ -218,6 +197,7 @@ export default function App({
     csvFile = useRef<HTMLInputElement>(null),
     fontFile = useRef<HTMLInputElement>(null),
     printKey = useRef(id());
+  const [clipboardCount, setClipboardCount] = useState(0);
   const inFlight = useRef(false);
   const pendingBatch = useRef<
     | {
@@ -236,6 +216,15 @@ export default function App({
     dirty = JSON.stringify(project) !== savedJSON;
   const profile = printers.find((p) => p.id === printerId) ?? zt411;
   const factor = unit === "mm" ? 1000 : 25400;
+  const unavailable = (label: string) => actionUnavailable(label, {
+    picked, clipboardCount, past: history.past.length, future: history.future.length,
+    zoom, revision, dirty, busy,
+  });
+  const textSelection = picked.length > 0 && picked.every(e => e.type === "text" && !e.locked);
+  const strokeSelection = picked.length > 0 && picked.every(e => "strokeUm" in e && !e.locked);
+  const focusProperties = () => {
+    (document.getElementById("object-content") ?? document.querySelector<HTMLInputElement>('[aria-label="Object name"]'))?.focus();
+  };
   const rawData = Object.fromEntries(
     project.variables.map((v) => [
       v.name,
@@ -263,8 +252,14 @@ export default function App({
     profile,
     quantity,
   });
+  // Undo/redo, template switches and refreshed profiles also invalidate compiled jobs.
+  useEffect(() => setCompilation(undefined), [compileKey.current]);
   const change = (next: Project) => {
     setHistory((h) => transition(h, next));
+    setCompilation(undefined);
+  };
+  const updateProject = (update: (present: Project) => Project) => {
+    setHistory(h => transition(h, update(h.present)));
     setCompilation(undefined);
   };
   const elements = (next: LabelElement[]) =>
@@ -277,8 +272,19 @@ export default function App({
   const property = (patch: Partial<LabelElement>) =>
     elements(
       template.elements.map((e) => {
-        if (!selected.includes(e.id)) return e;
-        const next = { ...e, ...patch } as LabelElement;
+        if (!selected.includes(e.id) || (e.locked && !("locked" in patch))) return e;
+        // Type-specific formatting never adds text/barcode properties to other objects.
+        if (["fontFamily", "fontSizeUm", "bold", "align", "text"].some(k => k in patch) && e.type !== "text") return e;
+        if (["symbology", "value"].some(k => k in patch) && e.type !== "barcode") return e;
+        if (["strokeUm", "fill"].some(k => k in patch) && !("strokeUm" in e)) return e;
+        const safePatch = { ...patch } as Record<string, unknown>;
+        for (const [key, value] of Object.entries(safePatch)) {
+          if (typeof value !== "number") continue;
+          if (!Number.isFinite(value)) return e;
+          if (["widthUm", "heightUm", "fontSizeUm"].includes(key)) safePatch[key] = Math.max(1, Math.round(value));
+          else if (["strokeUm", "cornerRadiusUm"].includes(key)) safePatch[key] = Math.max(0, Math.round(value));
+        }
+        const next = { ...e, ...safePatch } as LabelElement;
         if (e.type === "text" && next.type === "text") {
           if ("fontSizeUm" in patch && e.lineHeightUm)
             next.lineHeightUm = Math.max(
@@ -315,6 +321,8 @@ export default function App({
     setRevision(p.revision ?? 0);
     setSavedJSON(p.revision ? JSON.stringify(parsed) : "");
     setValues({});
+    setCsvRows([]); setCsvFields([]); setMapping({}); setQuantityColumn(""); setSampleRow(0);
+    pendingBatch.current = undefined;
     setCompilation(undefined);
     setModal("");
     setStatus("Project opened");
@@ -486,16 +494,20 @@ export default function App({
     setSelected([e.id]);
   };
   const remove = () => {
+    if (unavailable("Delete")) return;
     elements(
       template.elements.filter((e) => !selected.includes(e.id) || e.locked),
     );
     setSelected([]);
   };
   const copy = () => {
+    if (unavailable("Copy")) return;
     clipboard.current = structuredClone(picked);
+    setClipboardCount(picked.length);
     setStatus(`${picked.length} object(s) copied`);
   };
   const paste = () => {
+    if (!clipboard.current.length) return;
     const groups = new Map<string, string>();
     const next = clipboard.current.map((e) => ({
       ...e,
@@ -523,11 +535,13 @@ export default function App({
       ),
     );
   const order = (front: boolean) => {
-    const rest = template.elements.filter((e) => !selected.includes(e.id));
-    elements(front ? [...rest, ...picked] : [...picked, ...rest]);
+    if (unavailable(front ? "Bring to front" : "Send to back")) return;
+    const movable = picked.filter(e => !e.locked);
+    const rest = template.elements.filter((e) => !movable.some(p => p.id === e.id));
+    elements(front ? [...rest, ...movable] : [...movable, ...rest]);
   };
   const group = (ungroup = false) =>
-    property({ groupId: ungroup ? undefined : id() });
+    !unavailable(ungroup ? "Ungroup" : "Group") && property({ groupId: ungroup ? undefined : id() });
   const compile = async () => {
     const requestedKey = compileKey.current;
     const c = await api<Compilation>("/compile", {
@@ -605,15 +619,15 @@ export default function App({
         rotation: 0,
         locked: false,
       };
-      change({
-        ...project,
-        assets: project.assets.some((a) => a.id === asset.id)
-          ? project.assets
-          : [...project.assets, asset],
-        templates: project.templates.map((t) =>
+      updateProject(present => ({
+        ...present,
+        assets: present.assets.some((a) => a.id === asset.id)
+          ? present.assets
+          : [...present.assets, asset],
+        templates: present.templates.map((t) =>
           t.id === template.id ? { ...t, elements: [...t.elements, e] } : t,
         ),
-      });
+      }));
       setSelected([e.id]);
     });
   const loadCsv = async (f: File) => {
@@ -625,8 +639,10 @@ export default function App({
       header: true,
       skipEmptyLines: true,
     });
-    if (result.errors.length) {
-      setError(result.errors[0].message);
+    // A one-column CSV is valid; Papa defaults to comma when there is no delimiter to detect.
+    const errors = result.errors.filter(error => error.code !== "UndetectableDelimiter");
+    if (errors.length) {
+      setError(errors[0].message);
       return;
     }
     if (result.data.length > 5000) {
@@ -644,6 +660,7 @@ export default function App({
       ),
     );
     setSampleRow(0);
+    setQuantityColumn("");
     setValues({});
   };
   const printBatch = () =>
@@ -702,21 +719,25 @@ export default function App({
         return;
       const ctrl = e.ctrlKey || e.metaKey;
       let handled = true;
-      if (ctrl && e.key === "s") void save();
-      else if (ctrl && e.key === "n") setModal("new");
-      else if (ctrl && e.key === "o") void openLibrary();
-      else if (ctrl && e.key === "p") preview();
-      else if (ctrl && e.key === "z")
+      const keyName = e.key.toLowerCase();
+      const command = ctrl ? ({ s: "Save", n: "New project", o: "Open project", p: "Print", z: e.shiftKey ? "Redo" : "Undo", y: "Redo", c: "Copy", x: "Cut", v: "Paste" } as Record<string, string>)[keyName] : ["Delete", "Backspace"].includes(e.key) ? "Delete" : undefined;
+      if (command && unavailable(command)) { e.preventDefault(); return; }
+      if (e.key === "Escape" && menu) { setMenu(""); e.preventDefault(); return; }
+      if (ctrl && keyName === "s") void save();
+      else if (ctrl && keyName === "n") setModal("new");
+      else if (ctrl && keyName === "o") void openLibrary();
+      else if (ctrl && keyName === "p") preview();
+      else if (ctrl && keyName === "z")
         setHistory((h) => (e.shiftKey ? redo(h) : undo(h)));
-      else if (ctrl && e.key === "y") setHistory(redo);
-      else if (ctrl && e.key === "c") copy();
-      else if (ctrl && e.key === "x") {
+      else if (ctrl && keyName === "y") setHistory(redo);
+      else if (ctrl && keyName === "c") copy();
+      else if (ctrl && keyName === "x") {
         copy();
         remove();
-      } else if (ctrl && e.key === "v") paste();
-      else if (ctrl && e.key === "a")
+      } else if (ctrl && keyName === "v") paste();
+      else if (ctrl && keyName === "a")
         setSelected(template.elements.map((e) => e.id));
-      else if (ctrl && e.key === "d") {
+      else if (ctrl && keyName === "d") {
         copy();
         paste();
       } else if (e.key === "Delete" || e.key === "Backspace") remove();
@@ -836,8 +857,9 @@ export default function App({
     ],
   };
   return (
+    <ActionReason.Provider value={unavailable}>
     <div className="application" data-theme="light">
-      <input
+      <input data-editor-control="App-001"
         ref={file}
         type="file"
         accept=".btw,.barista"
@@ -848,7 +870,7 @@ export default function App({
           e.target.value = "";
         }}
       />
-      <input
+      <input data-editor-control="App-002"
         ref={imageFile}
         type="file"
         accept="image/png,image/jpeg,image/webp"
@@ -859,18 +881,18 @@ export default function App({
           e.target.value = "";
         }}
       />
-      <input
+      <input data-editor-control="App-003"
         ref={csvFile}
         type="file"
         accept=".csv"
         hidden
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) void loadCsv(f);
+          if (f) void run(() => loadCsv(f));
           e.target.value = "";
         }}
       />
-      <input
+      <input data-editor-control="App-004"
         ref={fontFile}
         type="file"
         accept=".ttf,.otf"
@@ -890,13 +912,13 @@ export default function App({
                 mimeType: "font/ttf",
                 kind: "font",
               });
-              change({
-                ...project,
+              updateProject(present => ({
+                ...present,
                 assets: [
-                  ...project.assets.filter((a) => a.id !== asset.id),
+                  ...present.assets.filter((a) => a.id !== asset.id),
                   asset,
                 ],
-              });
+              }));
             });
           e.target.value = "";
         }}
@@ -907,7 +929,7 @@ export default function App({
           <b>Barista Labels</b>
           <span className="title-divider">/</span>
           {nameEdit?.projectId === project.id ? (
-            <input
+            <input data-editor-control="App-005"
               className="header-name-input"
               aria-label="Label name"
               value={nameEdit.value}
@@ -931,7 +953,7 @@ export default function App({
               }}
             />
           ) : (
-            <span
+            <span data-editor-control="App-006"
               className="header-name"
               tabIndex={0}
               title="Double-click to rename label"
@@ -954,15 +976,15 @@ export default function App({
         </div>
         <div className="title-actions">
           <span className="publication-status">{publication?.published ? `Published v${publication.version}${dirty || publication.sourceRevision !== revision ? " · draft changes" : ""}` : "Unpublished"}</span>
-          <button className="btn btn-sm" disabled={busy} onClick={publish}>{publication?.published ? "Republish label" : "Publish label"}</button>
-          {publication?.published && <button className="btn btn-sm" disabled={busy} onClick={() => run(async () => {
+          <button data-editor-control="App-007" className="btn btn-sm" disabled={busy} onClick={publish}>{publication?.published ? "Republish label" : "Publish label"}</button>
+          {publication?.published && <button data-editor-control="App-008" className="btn btn-sm" disabled={busy} onClick={() => run(async () => {
             await api(`/publications/${publication.id}/unpublish`, {}); setPublications(await api("/publications")); setStatus(`Unpublished ${template.name}`);
           })}>Unpublish label</button>}
-          {onSwitchMode && <button className="btn btn-sm" disabled={busy} onClick={onSwitchMode}>Switch to Printer</button>}
+          {onSwitchMode && <button data-editor-control="App-009" className="btn btn-sm" disabled={busy} onClick={onSwitchMode}>Switch to Printer</button>}
           {development && <span className="dev-tag">LOCAL DEVELOPMENT</span>}
           <span>{user}</span>
           {onSignOut && (
-            <Tool icon={LogOut} label="Sign out" onClick={onSignOut} />
+            <Tool auditId="App-010" icon={LogOut} label="Sign out" onClick={onSignOut} />
           )}
         </div>
       </div>
@@ -971,19 +993,22 @@ export default function App({
           .filter((k) => k !== "Administer" || admin)
           .map((k) => (
             <div className="menu-container" key={k}>
-              <button
+              <button data-editor-control="App-011"
                 className={menu === k ? "open" : ""}
+                aria-expanded={menu === k}
                 onClick={() => setMenu(menu === k ? "" : k)}
               >
                 {k}
               </button>
               {menu === k && (
                 <>
-                  <div className="menu-dismiss" onClick={() => setMenu("")} />
+                  <button data-editor-control="App-120" className="menu-dismiss" aria-label="Dismiss menu" tabIndex={-1} onClick={() => setMenu("")} />
                   <div className="desktop-menu">
                     {menuItems[k].map(([label, action]) => (
-                      <button
+                      <button data-editor-control="App-012"
                         key={label}
+                        disabled={!!unavailable(label)}
+                        title={unavailable(label)}
                         onClick={() => {
                           setMenu("");
                           action();
@@ -1001,37 +1026,37 @@ export default function App({
       </nav>
       <div className="toolbar main-toolbar">
         <div className="tool-group">
-          <Tool
+          <Tool auditId="App-013"
             icon={FilePlus2}
             label="New project"
             onClick={() => setModal("new")}
           />
-          <Tool
+          <Tool auditId="App-014"
             icon={FolderOpen}
             label="Open project"
             onClick={() => void openLibrary()}
           />
-          <Tool
+          <Tool auditId="App-015"
             icon={Save}
             label="Save project (Ctrl+S)"
             onClick={() => void save()}
             disabled={busy}
           />
-          <Tool
+          <Tool auditId="App-016"
             icon={Settings2}
             label="Page setup"
             onClick={() => setModal("setup")}
           />
-          <Tool
+          <Tool auditId="App-017"
             icon={Database}
             label="Named fields and CSV"
             onClick={() => setModal("data")}
           />
-          <Tool icon={Printer} label="Print (Ctrl+P)" onClick={preview} />
-          <Tool icon={ScanEye} label="Print preview" onClick={preview} />
+          <Tool auditId="App-018" icon={Printer} label="Print (Ctrl+P)" onClick={preview} />
+          <Tool auditId="App-019" icon={ScanEye} label="Print preview" onClick={preview} />
         </div>
         <div className="tool-group">
-          <Tool
+          <Tool auditId="App-020"
             icon={Scissors}
             label="Cut"
             disabled={!picked.length}
@@ -1040,20 +1065,20 @@ export default function App({
               remove();
             }}
           />
-          <Tool
+          <Tool auditId="App-021"
             icon={Copy}
             label="Copy"
             disabled={!picked.length}
             onClick={copy}
           />
-          <Tool icon={ClipboardPaste} label="Paste" onClick={paste} />
-          <Tool
+          <Tool auditId="App-022" icon={ClipboardPaste} label="Paste" onClick={paste} />
+          <Tool auditId="App-023"
             icon={Undo2}
             label="Undo"
             disabled={!history.past.length}
             onClick={() => setHistory(undo)}
           />
-          <Tool
+          <Tool auditId="App-024"
             icon={Redo2}
             label="Redo"
             disabled={!history.future.length}
@@ -1061,7 +1086,7 @@ export default function App({
           />
         </div>
         <div className="tool-group">
-          <Tool
+          <Tool auditId="App-025"
             icon={MousePointer2}
             label="Select objects"
             active
@@ -1077,7 +1102,7 @@ export default function App({
               "image",
             ] as const
           ).map((t) => (
-            <Tool
+            <Tool auditId="App-026"
               key={t}
               icon={iconFor(t)}
               label={`Insert ${t}`}
@@ -1086,17 +1111,17 @@ export default function App({
           ))}
         </div>
         <div className="tool-group">
-          <Tool
+          <Tool auditId="App-027"
             icon={ZoomIn}
             label="Zoom in"
             onClick={() => setZoom(Math.min(3, zoom + 0.1))}
           />
-          <Tool
+          <Tool auditId="App-028"
             icon={ZoomOut}
             label="Zoom out"
             onClick={() => setZoom(Math.max(0.2, zoom - 0.1))}
           />
-          <select
+          <select data-editor-control="App-029"
             aria-label="Zoom"
             className="toolbar-select"
             value={Math.round(zoom * 100)}
@@ -1109,13 +1134,13 @@ export default function App({
                 <option key={n}>{n}</option>
               ))}
           </select>
-          <Tool
+          <Tool auditId="App-030"
             icon={Magnet}
             label="Snap to grid and objects"
             active={snap}
             onClick={() => setSnap(!snap)}
           />
-          <Tool
+          <Tool auditId="App-031"
             icon={Grid3X3}
             label="Show grid"
             active={grid}
@@ -1124,11 +1149,12 @@ export default function App({
         </div>
       </div>
       <div className="toolbar format-toolbar">
-        <select
+        <select data-editor-control="App-032"
           aria-label="Font family"
           value={current?.type === "text" ? current.fontFamily : "Arial"}
           onChange={(e) => property({ fontFamily: e.target.value } as any)}
-          disabled={current?.type !== "text"}
+          disabled={!textSelection}
+          title={!textSelection ? "Select unlocked text objects" : undefined}
           className="toolbar-select font-select"
         >
           {[
@@ -1142,7 +1168,7 @@ export default function App({
             <option key={f}>{f}</option>
           ))}
         </select>
-        <input
+        <input data-editor-control="App-033"
           aria-label="Font size in points"
           className="toolbar-input"
           type="number"
@@ -1152,17 +1178,20 @@ export default function App({
               ? Math.round(current.fontSizeUm / 352.778)
               : 12
           }
-          disabled={current?.type !== "text"}
+          disabled={!textSelection}
+          title={!textSelection ? "Select unlocked text objects" : undefined}
           onChange={(e) =>
             property({
               fontSizeUm: Math.round(Number(e.target.value) * 352.778),
             } as any)
           }
         />
-        <button
+        <button data-editor-control="App-034"
           aria-label="Bold"
           className={`tool bold-button ${current?.type === "text" && current.bold ? "active" : ""}`}
-          disabled={current?.type !== "text"}
+          disabled={!textSelection}
+          aria-pressed={current?.type === "text" && current.bold}
+          title={!textSelection ? "Select unlocked text objects" : undefined}
           onClick={() =>
             current?.type === "text" && property({ bold: !current.bold })
           }
@@ -1171,11 +1200,13 @@ export default function App({
         </button>
         <span className="toolbar-sep" />
         {(["left", "center", "right"] as const).map((a) => (
-          <button
+          <button data-editor-control="App-035"
             key={a}
             className={`text-align-button ${current?.type === "text" && current.align === a ? "active" : ""}`}
             title={`Text align ${a}`}
-            disabled={current?.type !== "text"}
+            aria-label={`Text align ${a}`}
+            aria-pressed={current?.type === "text" && current.align === a}
+            disabled={!textSelection}
             onClick={() => property({ align: a } as any)}
           >
             <span className={a} />
@@ -1183,7 +1214,7 @@ export default function App({
         ))}
         <span className="toolbar-sep" />
         <span className="toolbar-label">Line:</span>
-        <input
+        <input data-editor-control="App-036"
           aria-label="Line thickness mm"
           className="toolbar-input"
           type="number"
@@ -1192,7 +1223,8 @@ export default function App({
           value={
             current && "strokeUm" in current ? current.strokeUm / 1000 : 0.3
           }
-          disabled={!current || !("strokeUm" in current)}
+          disabled={!strokeSelection}
+          title={!strokeSelection ? "Select unlocked line or shape objects" : undefined}
           onChange={(e) =>
             property({
               strokeUm: Math.round(Number(e.target.value) * 1000),
@@ -1202,7 +1234,7 @@ export default function App({
         <span className="toolbar-label">mm</span>
         <span className="toolbar-sep" />
         <span className="toolbar-label">Units</span>
-        <select
+        <select data-editor-control="App-037"
           aria-label="Display units"
           className="toolbar-select"
           value={unit}
@@ -1216,10 +1248,10 @@ export default function App({
         <span className="dot-indicator" />
       </div>
       {error && (
-        <div className="notice error">
+        <div className="notice error" role="alert">
           <AlertTriangle size={15} />
           <span>{error}</span>
-          <button aria-label="Dismiss error" onClick={() => setError("")}>
+          <button data-editor-control="App-038" aria-label="Dismiss error" onClick={() => setError("")}>
             <X size={15} />
           </button>
         </div>
@@ -1237,8 +1269,8 @@ export default function App({
             Toolbox <ChevronDown size={13} />
           </div>
           <div className="explorer-tabs">
-            <button className="selected">Objects</button>
-            <button onClick={() => setModal("data")}>Data Sources</button>
+            <span className="selected">Objects</span>
+            <button data-editor-control="App-039" onClick={() => setModal("data")}>Data Sources</button>
           </div>
           <div className="tree-heading">
             <ChevronDown size={13} />
@@ -1248,18 +1280,19 @@ export default function App({
             {template.elements.map((e) => {
               const Icon = iconFor(e.type);
               return (
-                <button
+                <button data-editor-control="App-040"
                   key={e.id}
                   className={selected.includes(e.id) ? "selected" : ""}
                   onClick={(event) =>
                     setSelected(
-                      event.shiftKey
-                        ? [...new Set([...selected, e.id])]
-                        : [e.id],
+                      (() => {
+                        const peers = e.groupId ? template.elements.filter(x => x.groupId === e.groupId).map(x => x.id) : [e.id];
+                        return event.shiftKey ? selected.includes(e.id) ? selected.filter(x => !peers.includes(x)) : [...new Set([...selected, ...peers])] : peers;
+                      })(),
                     )
                   }
                   onDoubleClick={() =>
-                    document.getElementById("object-content")?.focus()
+                    focusProperties()
                   }
                 >
                   <Icon size={15} />
@@ -1276,7 +1309,7 @@ export default function App({
           </div>
           <div className="pane-title secondary">
             Named data sources{" "}
-            <button
+            <button data-editor-control="App-041"
               aria-label="Edit named fields"
               onClick={() => setModal("data")}
             >
@@ -1285,7 +1318,7 @@ export default function App({
           </div>
           <div className="data-tree">
             {project.variables.map((v) => (
-              <button key={v.name} onClick={() => setModal("data")}>
+              <button data-editor-control="App-042" key={v.name} onClick={() => setModal("data")}>
                 <Database size={13} />
                 {v.name}
               </button>
@@ -1317,7 +1350,7 @@ export default function App({
             </span>
             <span className="document-tab-right">Design</span>
           </div>
-          <Canvas
+          <Canvas auditId="App-043"
             template={template}
             project={project}
             selected={selected}
@@ -1340,13 +1373,15 @@ export default function App({
               })
             }
             onDoubleClick={() =>
-              document.getElementById("object-content")?.focus()
+              focusProperties()
             }
           />
           <div className="template-tabs">
             {project.templates.map((t) => (
-              <button
+              <button data-editor-control="App-044"
                 key={t.id}
+                disabled={busy}
+                title={busy ? "Wait for the current operation to finish" : undefined}
                 className={t.id === template.id ? "active" : ""}
                 onClick={() => {
                   setTemplateId(t.id);
@@ -1357,8 +1392,10 @@ export default function App({
                 {t.name}
               </button>
             ))}
-            <button
+            <button data-editor-control="App-045"
               aria-label="Add template"
+              disabled={busy}
+              title={busy ? "Wait for the current operation to finish" : undefined}
               onClick={() => {
                 const t: LabelTemplate = {
                   id: id(),
@@ -1397,16 +1434,18 @@ export default function App({
                   <b>{current.name}</b>
                   <small>{current.type}</small>
                 </div>
-                <Tool
+                <Tool auditId="App-046"
                   icon={current.locked ? LockKeyhole : Unlock}
                   label={current.locked ? "Unlock selection" : "Lock selection"}
                   onClick={() => property({ locked: !current.locked })}
                 />
               </div>
+              <fieldset className="editable-properties" disabled={picked.every(e => e.locked)}>
+              {picked.some(e => e.locked) && <p className="property-hint">Locked objects stay unchanged. Unlock them to edit their properties.</p>}
               <section>
                 <h3>General</h3>
                 <Field label="Name">
-                  <input
+                  <input data-editor-control="App-047"
                     aria-label="Object name"
                     value={current.name}
                     onChange={(e) => property({ name: e.target.value })}
@@ -1430,10 +1469,11 @@ export default function App({
                         }[k]
                       }
                     >
-                      <input
+                      <input data-editor-control="App-048"
                         aria-label={k}
                         type="number"
                         disabled={current.type === "line" && k === "heightUm"}
+                        title={current.type === "line" && k === "heightUm" ? "Line height follows stroke thickness" : undefined}
                         min={
                           k === "widthUm" || k === "heightUm"
                             ? 0.001
@@ -1451,7 +1491,7 @@ export default function App({
                   ))}
                 </div>
                 <Field label="Rotation">
-                  <input
+                  <input data-editor-control="App-049"
                     type="number"
                     aria-label="Rotation"
                     value={current.rotation}
@@ -1465,7 +1505,7 @@ export default function App({
                 <section>
                   <h3>Text</h3>
                   <Field label="Data source">
-                    <select
+                    <select data-editor-control="App-050"
                       aria-label="Text data source"
                       value={current.dataMode ?? "template"}
                       onChange={(e) =>
@@ -1477,7 +1517,7 @@ export default function App({
                       <option value="formula">Formula</option>
                     </select>
                   </Field>
-                  <textarea
+                  <textarea data-editor-control="App-051"
                     id="object-content"
                     aria-label="Text content"
                     rows={4}
@@ -1493,7 +1533,7 @@ export default function App({
                 <section>
                   <h3>Barcode</h3>
                   <Field label="Data source">
-                    <select
+                    <select data-editor-control="App-052"
                       aria-label="Barcode data source"
                       value={current.dataMode ?? "template"}
                       onChange={(e) =>
@@ -1506,7 +1546,7 @@ export default function App({
                     </select>
                   </Field>
                   <Field label="Symbology">
-                    <select
+                    <select data-editor-control="App-053"
                       value={current.symbology}
                       onChange={(e) =>
                         property({ symbology: e.target.value } as any)
@@ -1518,7 +1558,7 @@ export default function App({
                     </select>
                   </Field>
                   <Field label="Data">
-                    <textarea
+                    <textarea data-editor-control="App-054"
                       id="object-content"
                       aria-label="Barcode data"
                       rows={3}
@@ -1548,7 +1588,7 @@ export default function App({
                   <h3>Line & fill</h3>
                   {current.type === "rectangle" && (
                     <Field label="Corner radius (mm)">
-                      <input
+                      <input data-editor-control="App-055"
                         aria-label="Corner radius"
                         type="number"
                         min="0"
@@ -1563,7 +1603,7 @@ export default function App({
                     </Field>
                   )}
                   <Field label="Thickness (mm)">
-                    <input
+                    <input data-editor-control="App-056"
                       aria-label="Thickness"
                       type="number"
                       min="0"
@@ -1577,8 +1617,10 @@ export default function App({
                     />
                   </Field>
                   <Field label="Fill">
-                    <select
+                    <select data-editor-control="App-057"
                       value={current.fill}
+                      disabled={current.type === "line"}
+                      title={current.type === "line" ? "Lines use their stroke and have no fill area" : undefined}
                       onChange={(e) =>
                         property({ fill: e.target.value } as any)
                       }
@@ -1588,10 +1630,13 @@ export default function App({
                       <option>white</option>
                     </select>
                   </Field>
+                  {current.type === "line" && <p className="property-hint">Lines use their stroke and have no fill area.</p>}
                 </section>
               )}
+              </fieldset>
               <section>
                 <h3>Arrange</h3>
+                <p className="property-hint">Alignment and grouping require two unlocked objects; distribution requires three.</p>
                 <div className="arrange-tools">
                   {[
                     [AlignStartVertical, "left", "Align left"],
@@ -1601,55 +1646,55 @@ export default function App({
                     [AlignCenterHorizontal, "center-y", "Vertical centres"],
                     [AlignEndHorizontal, "bottom", "Align bottom"],
                   ].map(([Icon, action, label]) => (
-                    <Tool
+                    <Tool auditId="App-058"
                       key={String(action)}
                       icon={Icon}
                       label={String(label)}
                       onClick={() => arrangeSelected(String(action))}
                     />
                   ))}
-                  <Tool
+                  <Tool auditId="App-059"
                     icon={ArrowUpToLine}
                     label="Bring to front"
                     onClick={() => order(true)}
                   />
-                  <Tool
+                  <Tool auditId="App-060"
                     icon={ArrowDownToLine}
                     label="Send to back"
                     onClick={() => order(false)}
                   />
-                  <Tool
+                  <Tool auditId="App-061"
                     icon={RotateCw}
                     label="Rotate 90 degrees"
                     onClick={() => arrangeSelected("rotate")}
                   />
-                  <Tool
+                  <Tool auditId="App-062"
                     icon={GroupIcon}
                     label="Group"
                     onClick={() => group()}
                   />
-                  <Tool
+                  <Tool auditId="App-063"
                     icon={Ungroup}
                     label="Ungroup"
                     onClick={() => group(true)}
                   />
-                  <Tool
+                  <Tool auditId="App-064"
                     icon={Trash2}
                     label="Delete selection"
                     onClick={remove}
                   />
                 </div>
                 <div className="arrange-links">
-                  <button onClick={() => arrangeSelected("label-x")}>
+                  <button data-editor-control="App-065" disabled={!!unavailable("Centre on label ↔")} title={unavailable("Centre on label ↔")} onClick={() => arrangeSelected("label-x")}>
                     Centre on label ↔
                   </button>
-                  <button onClick={() => arrangeSelected("label-y")}>
+                  <button data-editor-control="App-066" disabled={!!unavailable("Centre on label ↕")} title={unavailable("Centre on label ↕")} onClick={() => arrangeSelected("label-y")}>
                     Centre on label ↕
                   </button>
-                  <button onClick={() => arrangeSelected("distribute-x")}>
+                  <button data-editor-control="App-067" disabled={!!unavailable("Distribute horizontally")} title={unavailable("Distribute horizontally")} onClick={() => arrangeSelected("distribute-x")}>
                     Distribute horizontally
                   </button>
-                  <button onClick={() => arrangeSelected("distribute-y")}>
+                  <button data-editor-control="App-068" disabled={!!unavailable("Distribute vertically")} title={unavailable("Distribute vertically")} onClick={() => arrangeSelected("distribute-y")}>
                     Distribute vertically
                   </button>
                 </div>
@@ -1663,53 +1708,53 @@ export default function App({
                 Click an object on the label or in the toolbox to edit its
                 properties.
               </p>
-              <button className="btn btn-sm" onClick={() => setModal("setup")}>
+              <button data-editor-control="App-069" className="btn btn-sm" onClick={() => setModal("setup")}>
                 Page setup
               </button>
             </div>
           )}
         </aside>
         <div className="arrange-rail">
-          <Tool
+          <Tool auditId="App-070"
             icon={AlignStartVertical}
             label="Align left"
             onClick={() => arrangeSelected("left")}
           />
-          <Tool
+          <Tool auditId="App-071"
             icon={AlignEndVertical}
             label="Align right"
             onClick={() => arrangeSelected("right")}
           />
-          <Tool
+          <Tool auditId="App-072"
             icon={AlignStartHorizontal}
             label="Align top"
             onClick={() => arrangeSelected("top")}
           />
-          <Tool
+          <Tool auditId="App-073"
             icon={AlignEndHorizontal}
             label="Align bottom"
             onClick={() => arrangeSelected("bottom")}
           />
           <span />
-          <Tool
+          <Tool auditId="App-074"
             icon={AlignCenterVertical}
             label="Centre horizontal"
             onClick={() => arrangeSelected("center-x")}
           />
-          <Tool
+          <Tool auditId="App-075"
             icon={AlignCenterHorizontal}
             label="Centre vertical"
             onClick={() => arrangeSelected("center-y")}
           />
           <span />
-          <Tool
+          <Tool auditId="App-076"
             icon={RotateCw}
             label="Rotate"
             onClick={() => arrangeSelected("rotate")}
           />
         </div>
       </div>
-      <footer className="statusbar">
+      <footer className="statusbar" role="status">
         <span>
           {busy ? (
             <span className="loading loading-spinner loading-xs" />
@@ -1736,29 +1781,27 @@ export default function App({
       </footer>
 
       {modal === "new" && (
-        <Modal title="New project" onClose={() => setModal("")}>
+        <Modal error={error} title="New project" onClose={() => setModal("")}>
           <p>
             Create a blank label project. Your current draft remains available
             in File → Recover draft until the new project is edited.
           </p>
-          <button
+          <button data-editor-control="App-077"
             className="btn btn-primary btn-sm"
             onClick={() => load(newProject())}
           >
             Create blank project
           </button>
-          <button className="btn btn-sm" onClick={() => load(demoProject())}>
+          <button data-editor-control="App-078" className="btn btn-sm" onClick={() => load(demoProject())}>
             Open receiving-label example
           </button>
         </Modal>
       )}
       {modal === "drafts" && (
-        <Modal title="Recover Draft" onClose={() => setModal("")}>
+        <Modal error={error} title="Recover Draft" onClose={() => setModal("")}>
           <div className="project-list">
-            {Object.values(
-              JSON.parse(localStorage.getItem("barista-drafts") ?? "{}"),
-            ).map((d: any) => (
-              <button
+            {recoveredDrafts(localStorage.getItem("barista-drafts")).map((d) => (
+              <button data-editor-control="App-079"
                 key={d.project.id}
                 onClick={() => {
                   load({ ...d.project, revision: d.revision });
@@ -1769,17 +1812,18 @@ export default function App({
                 <small>Recovered local draft</small>
               </button>
             ))}
+            {!recoveredDrafts(localStorage.getItem("barista-drafts")).length && <p>No valid recovered drafts are available.</p>}
           </div>
         </Modal>
       )}
       {modal === "conflict" && (
-        <Modal title="Project Changed on Server" onClose={() => setModal("")}>
+        <Modal error={error} title="Project Changed on Server" onClose={() => setModal("")}>
           <p>
             Another user saved a newer revision. Your edits have not overwritten
             their changes.
           </p>
           <div className="dialog-actions">
-            <button
+            <button data-editor-control="App-080"
               className="btn btn-sm"
               onClick={() =>
                 run(async () => load(await api(`/projects/${project.id}`)))
@@ -1787,7 +1831,7 @@ export default function App({
             >
               Open latest revision
             </button>
-            <button
+            <button data-editor-control="App-081"
               className="btn btn-primary btn-sm"
               onClick={() => {
                 change({ ...project, id: id(), name: project.name + " copy" });
@@ -1802,9 +1846,9 @@ export default function App({
         </Modal>
       )}
       {modal === "library" && (
-        <Modal title="Open project" onClose={() => setModal("")} wide>
+        <Modal error={error} title="Open project" onClose={() => setModal("")} wide>
           <div className="dialog-actions">
-            <button
+            <button data-editor-control="App-082"
               className="btn btn-sm"
               onClick={() => file.current?.click()}
             >
@@ -1814,7 +1858,7 @@ export default function App({
           </div>
           <div className="project-list">
             {library.map((p) => (
-              <button key={p.id} onClick={() => load(p)}>
+              <button data-editor-control="App-083" key={p.id} onClick={() => load(p)}>
                 <Layers size={22} />
                 <span>
                   <b>{p.name}</b>
@@ -1836,16 +1880,16 @@ export default function App({
         </Modal>
       )}
       {modal === "setup" && (
-        <Modal title="Page Setup" onClose={() => setModal("")}>
+        <Modal error={error} title="Page Setup" onClose={() => setModal("")}>
           <div className="dialog-tabs">
-            <button
+            <button data-editor-control="App-084"
               type="button"
               className={setupTab === "page" ? "active" : ""}
               onClick={() => setSetupTab("page")}
             >
               Page
             </button>
-            <button
+            <button data-editor-control="App-085"
               type="button"
               className={setupTab === "layout" ? "active" : ""}
               onClick={() => setSetupTab("layout")}
@@ -1856,13 +1900,13 @@ export default function App({
           {setupTab === "page" ? (
             <>
               <Field label="Project name">
-                <input
+                <input data-editor-control="App-086"
                   value={project.name}
                   onChange={(e) => change({ ...project, name: e.target.value })}
                 />
               </Field>
               <Field label="Template name">
-                <input
+                <input data-editor-control="App-087"
                   value={template.name}
                   onChange={(e) =>
                     change({
@@ -1879,7 +1923,7 @@ export default function App({
                   key={k}
                   label={`${k === "widthUm" ? "Width" : "Height"} (${unit})`}
                 >
-                  <input
+                  <input data-editor-control="App-088"
                     type="number"
                     min=".1"
                     step=".1"
@@ -1891,10 +1935,10 @@ export default function App({
                           t.id === template.id
                             ? {
                                 ...t,
-                                [k]: Math.max(
+                                [k]: Math.min(2_000_000, Math.max(
                                   100,
                                   Math.round(Number(e.target.value) * factor),
-                                ),
+                                )),
                               }
                             : t,
                         ),
@@ -1918,7 +1962,9 @@ export default function App({
           ) : (
             <>
               <Field label="Orientation">
-                <select
+                <select data-editor-control="App-089"
+                  disabled={template.widthUm === template.heightUm}
+                  title={template.widthUm === template.heightUm ? "Square labels have no distinct orientation" : undefined}
                   value={
                     template.widthUm >= template.heightUm
                       ? "landscape"
@@ -1950,8 +1996,10 @@ export default function App({
                 </select>
               </Field>
               <Field label="Rotate / Swap">
-                <button
+                <button data-editor-control="App-090"
                   type="button"
+                  disabled={template.widthUm === template.heightUm}
+                  title={template.widthUm === template.heightUm ? "Square label dimensions are already equal" : undefined}
                   className="btn btn-sm"
                   style={{ flex: 1 }}
                   onClick={() =>
@@ -1968,8 +2016,9 @@ export default function App({
                   Swap Width & Height ({Number((template.heightUm / factor).toFixed(1))} × {Number((template.widthUm / factor).toFixed(1))} {unit})
                 </button>
               </Field>
+              {template.widthUm === template.heightUm && <p className="property-hint">Square labels have no distinct orientation; width and height are already equal.</p>}
               <Field label="Rows">
-                <input
+                <input data-editor-control="App-091"
                   type="number"
                   min="1"
                   max="1"
@@ -1979,7 +2028,7 @@ export default function App({
                 />
               </Field>
               <Field label="Columns">
-                <input
+                <input data-editor-control="App-092"
                   type="number"
                   min="1"
                   max="1"
@@ -1989,7 +2038,7 @@ export default function App({
                 />
               </Field>
               <Field label={`Margins (${unit})`}>
-                <input
+                <input data-editor-control="App-093"
                   type="text"
                   value={`0 ${unit} (edge-to-edge)`}
                   readOnly
@@ -2016,7 +2065,7 @@ export default function App({
             </>
           )}
           <div className="dialog-actions">
-            <button
+            <button data-editor-control="App-094"
               className="btn btn-primary btn-sm"
               onClick={() => setModal("")}
             >
@@ -2026,7 +2075,7 @@ export default function App({
         </Modal>
       )}
       {modal === "print" && (
-        <Modal title="Print Preview & Print" onClose={() => setModal("")} wide>
+        <Modal error={error} title="Print Preview & Print" onClose={() => setModal("")} wide>
           {printerWarnings.map((warning, i) => (
             <p className="diagnostic warning" key={i}>
               {warning}
@@ -2035,7 +2084,7 @@ export default function App({
           <div className="print-grid">
             <div>
               <Field label="Printer">
-                <select
+                <select data-editor-control="App-095"
                   value={printerId}
                   onChange={(e) => {
                     setPrinterId(e.target.value);
@@ -2051,7 +2100,7 @@ export default function App({
                     </option>
                   ))}
                 </select>
-                <button
+                <button data-editor-control="App-096"
                   className="btn btn-xs"
                   disabled={busy}
                   onClick={() => run(refreshPrinters)}
@@ -2060,7 +2109,7 @@ export default function App({
                 </button>
               </Field>
               <Field label="Identical copies">
-                <input
+                <input data-editor-control="App-097"
                   type="number"
                   min="1"
                   max="10000"
@@ -2073,9 +2122,10 @@ export default function App({
               </Field>
               {project.variables.map((v) => (
                 <Field key={v.name} label={v.name}>
-                  <input
+                  <input data-editor-control="App-098"
                     value={data[v.name] ?? ""}
                     readOnly={v.formula !== undefined}
+                    title={v.formula !== undefined ? "Calculated from a named formula; edit it in Named Data Sources" : undefined}
                     onChange={(e) => {
                       setValues({ ...values, [v.name]: e.target.value });
                       setCompilation(undefined);
@@ -2083,7 +2133,7 @@ export default function App({
                   />
                 </Field>
               ))}
-              <button
+              <button data-editor-control="App-099"
                 className="btn btn-sm"
                 disabled={busy}
                 onClick={() => run(compile)}
@@ -2096,6 +2146,7 @@ export default function App({
                   ? `${compilation.widthDots} × ${compilation.heightDots} dots`
                   : "Generate a preview to validate this label."}
                 <p>The exact compiled job shown here is sent to the printer.</p>
+                {!printers.some(p => p.id === profile.id) && <p>Select a configured printer to enable printing. The default profile supports preview and ZPL download.</p>}
               </div>
             </div>
             <div className="print-preview">
@@ -2121,13 +2172,14 @@ export default function App({
             </div>
           ))}
           <details className="zpl-details">
-            <summary>Generated ZPL</summary>
+            <summary data-editor-control="App-100">Generated ZPL</summary>
             <pre>{compilation?.zpl ?? "Compile the label to inspect ZPL."}</pre>
           </details>
           <div className="dialog-actions">
-            <button
+            <button data-editor-control="App-101"
               className="btn btn-sm"
-              disabled={!compilation?.zpl}
+              disabled={busy || !compilation?.zpl}
+              title={busy ? "Wait for the current operation to finish" : !compilation?.zpl ? "Generate a valid preview first" : undefined}
               onClick={() =>
                 compilation &&
                 download(
@@ -2139,8 +2191,9 @@ export default function App({
               <Download size={14} />
               Download ZPL
             </button>
-            <button
+            <button data-editor-control="App-102"
               className="btn btn-primary btn-sm"
+              title={busy ? "Wait for the current operation to finish" : !compilation?.zpl ? "Generate a valid preview first" : compilation.diagnostics.some(d => d.severity === "error") ? "Resolve preview errors before printing" : !printers.some(p => p.id === profile.id) ? "Select a configured printer" : undefined}
               disabled={
                 busy ||
                 !compilation?.zpl ||
@@ -2156,7 +2209,7 @@ export default function App({
         </Modal>
       )}
       {modal === "data" && (
-        <Modal
+        <Modal error={error}
           title="Named Data Sources & CSV Batch"
           onClose={() => setModal("")}
           wide
@@ -2164,8 +2217,9 @@ export default function App({
           <div className="data-fields">
             {project.variables.map((v, i) => (
               <div className="data-field-row" key={i}>
-                <input
+                <input data-editor-control="App-103"
                   aria-label="Field name"
+                  pattern="[A-Za-z_][A-Za-z0-9_]*"
                   placeholder="field_name"
                   value={v.name}
                   onChange={(e) =>
@@ -2185,20 +2239,21 @@ export default function App({
                     })
                   }
                 />
-                {v.formula === undefined ? <input
+                {(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v.name) || project.variables.some((x, n) => n !== i && x.name === v.name)) && <p role="alert">Use a unique field name starting with a letter or underscore.</p>}
+                {v.formula === undefined ? <input data-editor-control="App-104"
                   aria-label="Default value" placeholder="Default value" value={v.defaultValue}
                   onChange={e => change({ ...project, variables: project.variables.map((x, n) => n === i ? { ...x, defaultValue: e.target.value } : x) })}
-                /> : <textarea
+                /> : <textarea data-editor-control="App-105"
                   aria-label="Named formula" placeholder="=LEFT(item,1)" value={v.formula} rows={3}
                   onChange={e => change({ ...project, variables: project.variables.map((x, n) => n === i ? { ...x, formula: e.target.value } : x) })}
                 />}
-                <select aria-label="Named source type" value={v.formula === undefined ? "input" : "formula"}
+                <select data-editor-control="App-106" aria-label="Named source type" value={v.formula === undefined ? "input" : "formula"}
                   onChange={e => change({ ...project, variables: project.variables.map((x, n) => n === i ? { ...x, formula: e.target.value === "formula" ? "" : undefined } : x) })}>
                   <option value="input">Input value</option>
                   <option value="formula">Formula</option>
                 </select>
                 {v.formula !== undefined && <output aria-label={`Result for ${v.name}`}>{resolvedSources.errors.find(error => error.name === v.name)?.message ?? data[v.name]}</output>}
-                <button
+                <button data-editor-control="App-107"
                   className="btn btn-ghost btn-xs"
                   aria-label="Remove field"
                   onClick={() =>
@@ -2212,7 +2267,7 @@ export default function App({
                 </button>
               </div>
             ))}
-            <button
+            <button data-editor-control="App-108"
               className="btn btn-sm"
               onClick={() =>
                 change({
@@ -2220,7 +2275,7 @@ export default function App({
                   variables: [
                     ...project.variables,
                     {
-                      name: `field_${project.variables.length + 1}`,
+                      name: nextFieldName(project.variables.map(v => v.name)),
                       defaultValue: "",
                     },
                   ],
@@ -2235,7 +2290,7 @@ export default function App({
           {project.variables.some(v => v.formula !== undefined) && <FormulaCatalog />}
           <hr />
           <h3>CSV batch data</h3>
-          <button
+          <button data-editor-control="App-109"
             className="btn btn-sm"
             onClick={() => csvFile.current?.click()}
           >
@@ -2249,7 +2304,7 @@ export default function App({
               </p>
               {project.variables.filter(v => v.formula === undefined).map((v) => (
                 <Field key={v.name} label={v.name}>
-                  <select
+                  <select data-editor-control="App-110"
                     value={mapping[v.name] ?? ""}
                     onChange={(e) =>
                       setMapping({ ...mapping, [v.name]: e.target.value })
@@ -2263,7 +2318,7 @@ export default function App({
                 </Field>
               ))}
               <Field label="Quantity column">
-                <select
+                <select data-editor-control="App-111"
                   value={quantityColumn}
                   onChange={(e) => setQuantityColumn(e.target.value)}
                 >
@@ -2274,7 +2329,7 @@ export default function App({
                 </select>
               </Field>
               <Field label="Preview row">
-                <input
+                <input data-editor-control="App-112"
                   type="number"
                   min="1"
                   max={csvRows.length}
@@ -2285,7 +2340,7 @@ export default function App({
                         0,
                         Math.min(
                           csvRows.length - 1,
-                          Number(e.target.value) - 1,
+                          Math.floor(Number(e.target.value)) - 1,
                         ),
                       ),
                     )
@@ -2293,7 +2348,7 @@ export default function App({
                 />
               </Field>
               <Field label="Printer">
-                <select
+                <select data-editor-control="App-113"
                   value={printerId}
                   onChange={(e) => setPrinterId(e.target.value)}
                 >
@@ -2308,19 +2363,21 @@ export default function App({
               <div className="csv-sample">
                 <pre>{JSON.stringify(csvRows[sampleRow], null, 2)}</pre>
               </div>
-              <button
+              <button data-editor-control="App-114"
                 className="btn btn-primary btn-sm"
-                disabled={busy}
+                disabled={busy || !printers.some(p => p.id === profile.id) || project.variables.some(v => v.formula === undefined && !mapping[v.name])}
+                title={busy ? "Wait for the current operation to finish" : !printers.some(p => p.id === profile.id) ? "Select a configured printer" : project.variables.some(v => v.formula === undefined && !mapping[v.name]) ? "Map every input field to a CSV column" : undefined}
                 onClick={printBatch}
               >
                 Validate & queue batch
               </button>
+              {(!printers.some(p => p.id === profile.id) || project.variables.some(v => v.formula === undefined && !mapping[v.name])) && <p className="property-hint">Select a configured printer and map every input field to a CSV column before queuing.</p>}
             </>
           )}
         </Modal>
       )}
       {modal === "jobs" && (
-        <Modal title="Print Jobs" onClose={() => setModal("")} wide>
+        <Modal error={error} title="Print Jobs" onClose={() => setModal("")} wide>
           <p className="property-hint">
             Sent means transmission completed. Physical completion is not
             verified.
@@ -2343,8 +2400,9 @@ export default function App({
                   {j.state}
                 </span>
                 {["sent", "failed", "outcome-unknown"].includes(j.state) && (
-                  <button
+                  <button data-editor-control="App-115"
                     className="btn btn-xs"
+                    disabled={busy}
                     onClick={() => {
                       if (
                         confirm(
@@ -2364,8 +2422,9 @@ export default function App({
                   </button>
                 )}
                 {j.state === "queued" && (
-                  <button
+                  <button data-editor-control="App-116"
                     className="btn btn-xs"
+                    disabled={busy}
                     onClick={() =>
                       run(async () => {
                         await api(`/jobs/${j.id}/cancel`, {});
@@ -2386,15 +2445,17 @@ export default function App({
         <PrinterConfiguration onClose={() => setModal("")} onChanged={() => void refreshPrinters()} />
       )}
       {modal === "history" && (
-        <Modal title="Revision History" onClose={() => setModal("")}>
+        <Modal error={error} title="Revision History" onClose={() => setModal("")}>
           <div className="project-list">
             {revisions.map((r) => (
-              <button
+              <button data-editor-control="App-117"
                 key={r.revision}
                 onClick={() => {
                   setHistory((h) =>
                     transition(h, projectSchema.parse(r.project)),
                   );
+                  setTemplateId(r.project.templates[0].id);
+                  setSelected([]);
                   setModal("");
                   setStatus(`Revision ${r.revision} loaded as draft`);
                 }}
@@ -2411,7 +2472,7 @@ export default function App({
         </Modal>
       )}
       {modal === "import" && (
-        <Modal
+        <Modal error={error}
           title="BarTender Import Report"
           onClose={() => setModal("")}
           wide
@@ -2448,7 +2509,7 @@ export default function App({
                 </div>
               ))}
               {importResult.project && (
-                <button
+                <button data-editor-control="App-118"
                   className="btn btn-primary btn-sm"
                   onClick={() => load(importResult.project)}
                 >
@@ -2462,11 +2523,12 @@ export default function App({
         </Modal>
       )}
     </div>
+    </ActionReason.Provider>
   );
 }
 
 function FormulaCatalog() {
-  return <details><summary>Formula functions and fields</summary>
+  return <details><summary data-editor-control="App-119">Formula functions and fields</summary>
     <p>Use a named field, {'{{field}}'}, or FIELD("field"). Join expressions with &amp;. MID positions start at 1. An initial = is optional.</p>
     {formulaFunctions.map(fn => <p key={fn.name}><code>{fn.signature}</code> — {fn.description}{fn.aliases?.length ? ` (aliases: ${fn.aliases.join(", ")})` : ""}</p>)}
   </details>;

@@ -13,3 +13,5 @@ Keyboard:Ctrl/Cmd+S save,O open,N new,P preview/print,Z/Y undo/redo,C/X/V clipbo
 Responsive artwork is provisional during editing. A debounced local render replaces it with authoritative printer-dot pixels behind editable hitboxes. Explicit preview validates content and shows the exact compilation sent/downloaded.
 
 `tools/ui-smoke.mjs` exercises editing, Save/Open, page setup and authoritative preview at1500×900px, writing ignored screenshots. Further successful reference workflow captures remain an acceptance gate. Advanced databases/scripts/RFID/counters are outside v1.
+
+The application-side [editor interaction audit](editor-audit.md), verified on 2026-10-13, covers every editor control site and its dialogs with asserted browser outcomes, including canvas gestures and keyboard behavior. This verifies the implemented application behavior; the reference workflow/parity acceptance gate above remains separate.

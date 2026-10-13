@@ -547,7 +547,8 @@ textarea {
   margin: 8px 0;
   font-size: 11px;
 }
-.property-field > span {
+.property-field > span,
+.property-field > .property-label {
   color: #657386;
   min-width: 66px;
 }
@@ -1013,6 +1014,10 @@ textarea {
   }
 }
 /* Published-label printing workspace */
+.editable-properties { border: 0; padding: 0; margin: 0; min-width: 0; }
+.explorer-tabs > span { padding: 6px 12px; font-size: 11px; }
+button:disabled, input:disabled, select:disabled, textarea:disabled { cursor: not-allowed; opacity: .5; }
+input[readonly], textarea[readonly] { background: #edf0f3; cursor: default; }
 .printer-workspace { min-height: 100vh; background: #f3f5f8; color: #243247; }
 .printer-content { max-width: 1200px; padding: 28px; margin: 0 auto; }
 .printer-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 24px; }

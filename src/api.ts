@@ -11,7 +11,7 @@ export async function api<T = any>(
   const response = await fetch(`/api${path}`, {
     method,
     headers: {
-      "Content-Type": "application/json",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -20,7 +20,7 @@ export async function api<T = any>(
     const error = await response
       .json()
       .catch(() => ({ error: response.statusText }));
-    throw Object.assign(new Error(error.error), { status: response.status });
+    throw Object.assign(new Error(error.error ?? error.message ?? response.statusText), { status: response.status });
   }
   return response.status === 204 ? (undefined as T) : response.json();
 }
